@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YT-DLP GUI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-container">
+        <img src="icon.png" alt="Logo" class="app-logo">
+      </div>
+      <div class="input-group">
+        <input type="text" id="urlInput" placeholder="Paste Video URL here..." spellcheck="false">
+        <button id="analyzeBtn" class="primary-btn">Analyze</button>
+        <button id="quickM4aBtn" class="secondary-btn" title="Quick Download Audio (m4a)">M4A</button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Loading Overlay -->
+      <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+      </div>
+
+      <!-- Content Area -->
+      <div id="contentArea" class="hidden">
+        <!-- Video Info with Thumbnail -->
+        <div class="video-info-container">
+          <img id="videoThumbnail" class="video-thumbnail hidden" alt="Video Thumbnail">
+          <div id="videoInfo"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="video">Video Only</button>
+          <button class="tab-btn" data-tab="audio">Audio Only</button>
+          <button class="tab-btn" data-tab="mixed">Mixed</button>
+        </div>
+
+        <!-- Data Grid -->
+        <div class="data-grid">
+          <div class="grid-header">
+            <div class="col">ID</div>
+            <div class="col">Ext</div>
+            <div class="col">Resolution</div>
+            <div class="col">FPS</div>
+            <div class="col">Size</div>
+            <div class="col">V-Codec</div>
+            <div class="col">A-Codec</div>
+            <div class="col">Bitrate</div>
+            <div class="col">Info</div>
+            <div class="col" style="flex: 0.5; text-align: center;">Copy</div>
+          </div>
+          <div id="gridBody" class="grid-body"></div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 7l-7 5 7 5V7z"></path>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
+        <p>Enter a URL to begin</p>
+      </div>
+    </main>
+
+    <!-- Bottom Panel -->
+    <section class="bottom-panel">
+      <div class="bottom-left">
+        <button id="toggleSettings" class="icon-btn" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6m5.2-13.2l-4.2 4.2m-2 2l-4.2 4.2M23 12h-6m-6 0H5m13.2 5.2l-4.2-4.2m-2-2l-4.2-4.2">
+            </path>
+          </svg>
+        </button>
+        <button id="toggleCommand" class="icon-btn" title="View Command">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </button>
+        <span id="statusMsg">Ready</span>
+      </div>
+      <div class="bottom-right">
+        <div style="position: relative; display: inline-block;">
+          <button id="clearSectionBadge" class="hidden" title="Clear Section" style="position: absolute; right: -6px; top: -6px; background: #e53935; color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">✖</button>
+          <button id="downloadSectionBtn" class="secondary-btn" disabled>Sections</button>
+        </div>
+        <button id="downloadBtn" class="primary-btn" disabled>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download
+        </button>
+      </div>
+    </section>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-content settings-modal-content">
+        <div class="modal-header">
+          <h3>⚙️ Settings</h3>
+          <button id="closeSettingsBtn" class="close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <!-- Download Location -->
+          <div class="setting-item">
+            <label>Download Location:</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="downloadPath" value="Downloads" readonly style="flex: 1;">
+              <button id="browseBtn" class="secondary-btn">Browse</button>
+            </div>
+          </div>
+
+          <!-- Cookies File -->
+          <div class="setting-item">
+            <label>Cookies File (Optional):</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="cookiesPath" value="" placeholder="No cookies file" style="flex: 1;">
+              <button id="browseCookiesBtn" class="secondary-btn">Browse</button>
+              <button id="clearCookiesBtn" class="secondary-btn">Clear</button>
+            </div>
+            <small>Use cookies for authentication (e.g., for private videos)</small>
+          </div>
+
+          <!-- Metadata & Files -->
+          <div class="setting-group">
+            <h4>Metadata & Files</h4>
+            <div class="setting-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="embedMetadata" checked>
+                <span class="slider"></span>
+                <span>Embed Metadata</span>
+              </label>
+              <small>Add metadata to the video file</small>
+            </div>
+            <div class="setting-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="embedThumbnail" checked>
+                <span class="slider"></span>
+                <span>Embed Thumbnail</span>
+              </label>
+              <small>Embed the thumbnail in the audio/video file</small>
+            </div>
+            <div class="setting-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="restrictFilenames">
+                <span class="slider"></span>
+                <span>Restrict Filenames</span>
+              </label>
+              <small>Restrict filenames to ASCII characters</small>
+            </div>
+          </div>
+
+          <!-- Download Behavior -->
+          <div class="setting-group">
+            <h4>Download Behavior</h4>
+            <div class="setting-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="noPlaylist" checked>
+                <span class="slider"></span>
+                <span>No Playlist</span>
+              </label>
+              <small>Download only the video, not the playlist</small>
+            </div>
+            <div class="setting-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="writeSubs">
+                <span class="slider"></span>
+                <span>Write Subtitles</span>
+              </label>
+              <small>Write subtitle file</small>
+            </div>
+            <div class="setting-item">
+              <label class="toggle-switch">
+                <input type="checkbox" id="ignoreErrors" checked>
+                <span class="slider"></span>
+                <span>Ignore Errors</span>
+              </label>
+              <small>Continue on download errors</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Command Preview Modal -->
+    <div id="commandModal" class="modal hidden">
+      <div class="modal-content command-modal-content">
+        <div class="modal-header">
+          <h3>💻 Command Preview</h3>
+          <button id="closeCommandBtn" class="close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <textarea id="cmdPreview" spellcheck="false" readonly></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download Progress Modal -->
+    <div id="progressModal" class="modal hidden">
+      <div class="modal-content">
+        <div id="processingView">
+          <h3>Downloading...</h3>
+          <div class="progress-track">
+            <div id="progressBar" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <pre id="progressLog" class="terminal-log"></pre>
+        </div>
+
+        <div id="successView" class="success-view hidden">
+          <div class="success-icon">✓</div>
+          <h3>Download Complete!</h3>
+          <p>Your files are ready.</p>
+        </div>
+
+        <div class="modal-actions">
+          <button id="cancelDownloadBtn" class="secondary-btn">Cancel</button>
+          <button id="openFolderBtn" class="primary-btn hidden">Open Folder</button>
+          <button id="closeModalBtn" class="secondary-btn hidden">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sections Modal -->
+    <div id="sectionsModal" class="modal hidden">
+      <div class="modal-content command-modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+          <h3>⏱️ Download Sections</h3>
+          <button id="closeSectionsBtn" class="close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 15px; font-size: 0.9em; color: #ccc;">Download a specific part of the video.</p>
+          
+          <div id="chapterContainer" class="setting-item hidden" style="margin-bottom: 15px;">
+            <label>Select Chapter:</label>
+            <select id="chapterSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; margin-top: 5px;">
+              <option value="">-- Custom Time --</option>
+            </select>
+          </div>
+
+          <div class="time-pickers-wrapper">
+            <!-- Start Time -->
+            <div class="time-picker-wrapper">
+              <label>START TIME:</label>
+              <div class="time-picker-box">
+                <!-- H -->
+                <div class="time-segment">
+                  <button class="t-btn t-up" data-target="startH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <input type="text" id="startH" value="00" maxlength="2" class="t-val">
+                  <button class="t-btn t-down" data-target="startH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+                <div class="t-sep">:</div>
+                <!-- M -->
+                <div class="time-segment">
+                  <button class="t-btn t-up" data-target="startM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <input type="text" id="startM" value="00" maxlength="2" class="t-val">
+                  <button class="t-btn t-down" data-target="startM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+                <div class="t-sep">:</div>
+                <!-- S -->
+                <div class="time-segment">
+                  <button class="t-btn t-up" data-target="startS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <input type="text" id="startS" value="00" maxlength="2" class="t-val">
+                  <button class="t-btn t-down" data-target="startS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- End Time -->
+            <div class="time-picker-wrapper">
+              <label>END TIME:</label>
+              <div class="time-picker-box">
+                <!-- H -->
+                <div class="time-segment">
+                  <button class="t-btn t-up" data-target="endH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <input type="text" id="endH" value="00" maxlength="2" class="t-val">
+                  <button class="t-btn t-down" data-target="endH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+                <div class="t-sep">:</div>
+                <!-- M -->
+                <div class="time-segment">
+                  <button class="t-btn t-up" data-target="endM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <input type="text" id="endM" value="00" maxlength="2" class="t-val">
+                  <button class="t-btn t-down" data-target="endM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+                <div class="t-sep">:</div>
+                <!-- S -->
+                <div class="time-segment">
+                  <button class="t-btn t-up" data-target="endS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <input type="text" id="endS" value="00" maxlength="2" class="t-val">
+                  <button class="t-btn t-down" data-target="endS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
+            <button id="clearSectionBtn" class="secondary-btn">Clear</button>
+            <button id="applySectionBtn" class="primary-btn">Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/neutralino.js"></script>
+  <script src="js/main.js"></script>
+</body>
+
+</html>
