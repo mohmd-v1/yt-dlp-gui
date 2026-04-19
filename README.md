@@ -4,7 +4,9 @@ A modern, professional desktop application for downloading videos using yt-dlp w
 <img width="1227" height="840" alt="image" src="https://github.com/user-attachments/assets/cc5d9ffa-0e7f-4940-ac3b-da37a1086c3d" />
 
 ## Features
-
+- Support various websites (as long as yt-dlp supports)
+  - Manually-tested sites: YouTube, Facebook, Reddit, TikTok, Twitter/X, Weibo, BiliBili, Soundcloud, Vimeo
+  - View the complete list: https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
 - 🎨 **Modern UI**: Professional dark theme with smooth animations
 - 🎬 **Format Selection**: Choose from video-only, audio-only, or mixed formats
 - 📊 **Quality Badges**: Color-coded resolution and codec indicators
@@ -51,11 +53,6 @@ Click the "M4A" button for instant audio download without format selection.
 - **Cookies File**: Use cookies for authentication
 - **Metadata Options**: Embed thumbnails and metadata
 - **Download Behavior**: Configure playlist handling and error management
-
-## Keyboard Shortcuts
-
-- `Ctrl+S`: Open Settings
-- `Ctrl+D`: Start Download (when format is selected)
 
 ## Technical Details
 
