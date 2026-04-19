@@ -19,6 +19,10 @@ A modern, professional desktop application for downloading videos using yt-dlp w
 - **yt-dlp**: Must be installed and available in PATH
 - **ffmpeg**: Required for merging video and audio streams
 
+## Download
+- Get the latest ready-to-use version:
+https://github.com/mohmd-v1/yt-dlp-gui/releases/download/v1.0.0/yt_dlp_gui.zip
+
 ## Installation
 
 ### Option 1: Pre-built Release
@@ -72,4 +76,4 @@ MIT License - See LICENSE file for details
 
 ## Version
 
-Current Version: 2.0.0
+Current Version: 1.0.0
