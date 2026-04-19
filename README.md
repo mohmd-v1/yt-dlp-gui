@@ -1,6 +1,7 @@
 # YT-DLP GUI
 
 A modern, professional desktop application for downloading videos using yt-dlp with an intuitive graphical interface.
+<img width="1227" height="840" alt="image" src="https://github.com/user-attachments/assets/cc5d9ffa-0e7f-4940-ac3b-da37a1086c3d" />
 
 ## Features
 
