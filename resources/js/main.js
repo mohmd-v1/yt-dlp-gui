@@ -629,7 +629,9 @@ function renderGrid() {
             <div class="col">${Math.round(fmt.tbr || 0)}k</div>
             <div class="col" title="${fmt.format_note || ''}">${fmt.format_note || ''}</div>
             <div class="col" style="flex: 0.5; text-align: center;">
-                <button class="icon-btn copy-link-btn" title="Copy direct stream URL (-g)" style="font-size: 1.1em; background: none; border: none; cursor: pointer;">📋</button>
+                <button class="copy-link-btn" title="Copy direct stream URL (-g)">
+                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
             </div>
         `;
 
@@ -828,10 +830,14 @@ async function copyDirectLink(formatId, btnElement) {
     const url = el.urlInput.value.trim();
     if (!url) return;
 
+    const spinIcon = `<svg class="svg-icon anim-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>`;
+    const checkIcon = `<svg class="svg-icon check-draw" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    const failIcon = `<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+
     // Change button state to loading
-    const originalText = btnElement.textContent;
+    const originalHTML = btnElement.innerHTML;
     const originalTitle = btnElement.title;
-    btnElement.textContent = '⏳';
+    btnElement.innerHTML = spinIcon;
     btnElement.title = 'Fetching...';
     btnElement.disabled = true;
 
@@ -847,29 +853,29 @@ async function copyDirectLink(formatId, btnElement) {
             await Neutralino.clipboard.writeText(directLink);
             
             // Show success
-            btnElement.textContent = '✔';
+            btnElement.innerHTML = checkIcon;
             btnElement.title = 'Copied!';
             setTimeout(() => {
-                btnElement.textContent = originalText;
+                btnElement.innerHTML = originalHTML;
                 btnElement.title = originalTitle;
                 btnElement.disabled = false;
             }, 2000);
         } else {
             console.error("yt-dlp command failed:", output.stdErr);
-            btnElement.textContent = '❌';
+            btnElement.innerHTML = failIcon;
             btnElement.title = 'Failed to fetch link';
             setTimeout(() => {
-                btnElement.textContent = originalText;
+                btnElement.innerHTML = originalHTML;
                 btnElement.title = originalTitle;
                 btnElement.disabled = false;
             }, 2000);
         }
     } catch (e) {
         console.error("Error copy link:", e);
-        btnElement.textContent = '❌';
+        btnElement.innerHTML = failIcon;
         btnElement.title = 'Error occurred';
         setTimeout(() => {
-            btnElement.textContent = originalText;
+            btnElement.innerHTML = originalHTML;
             btnElement.title = originalTitle;
             btnElement.disabled = false;
         }, 2000);
