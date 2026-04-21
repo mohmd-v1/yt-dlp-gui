@@ -962,3 +962,47 @@ body {
     color: #555;
     padding-bottom: 2px;
 }
+
+/* Copy Button SVG animations */
+.copy-link-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+}
+.copy-link-btn:hover {
+    color: var(--accent-light);
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+.svg-icon {
+    width: 18px;
+    height: 18px;
+    transition: all 0.2s ease;
+}
+
+@keyframes spin-linear {
+    100% { transform: rotate(360deg); }
+}
+.anim-spin {
+    animation: spin-linear 1s linear infinite;
+    color: var(--warning);
+}
+
+@keyframes check-draw {
+    0% { stroke-dasharray: 0, 50; stroke-dashoffset: 0; }
+    100% { stroke-dasharray: 50, 0; stroke-dashoffset: 0; }
+}
+.check-draw {
+    stroke-dasharray: 50;
+    animation: check-draw 0.3s ease-in-out forwards;
+}
