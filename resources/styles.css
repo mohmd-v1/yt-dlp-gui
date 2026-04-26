@@ -20,7 +20,7 @@
     --border: #1f1f1f;
     --border-light: #2a2a2a;
 
-    --shadow: rgba(0,0,0,0.6);
+    --shadow: rgba(0, 0, 0, 0.6);
 
     --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-mono: 'JetBrains Mono', 'Consolas', monospace;
@@ -111,11 +111,11 @@ body {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
     color: white;
     border: none;
-    padding: 14px 28px;
+    padding: 6px 8px;
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 19px;
     transition: all 0.2s ease;
     font-family: var(--font-ui);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
@@ -144,7 +144,7 @@ body {
     background: var(--bg-card);
     color: var(--text-primary);
     border: 1px solid var(--border-light);
-    padding: 14px 24px;
+    padding: 9px 9px;
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 500;
@@ -160,7 +160,7 @@ body {
 
 /* Main Content */
 .main-content {
-   /*  flex: 1;
+    /*  flex: 1;
     overflow: hidden; */
     display: flex;
     flex-direction: column;
@@ -206,7 +206,7 @@ body {
     flex-direction: column;
     gap: 16px;
     min-height: 0;
-/*     flex: 1;
+    /*     flex: 1;
     overflow: hidden; */
     /* Important for flex scrolling */
 }
@@ -221,6 +221,28 @@ body {
     border: 1px solid var(--border);
     flex-shrink: 0;
     /* Don't shrink */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 90;
+}
+
+.tabs.tabs-floating {
+    position: fixed;
+    top: 50%;
+    left: -6px;
+    transform: translateY(-50%);
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-light);
+    padding: 10px;
+    gap: 12px;
+    border-radius: 14px;
+}
+
+.tabs.tabs-floating .tab-btn {
+    padding: 10px 14px;
+    font-size: 11px;
 }
 
 .tab-btn {
@@ -274,6 +296,8 @@ body {
     color: var(--text-secondary);
     border-bottom: 2px solid var(--border);
     flex-shrink: 0;
+    grid-auto-flow: column dense;
+
     /* Don't shrink */
 }
 
@@ -417,12 +441,35 @@ body {
     margin-top: auto;
     border-top: 1px solid var(--border);
     background: var(--bg-secondary);
-    padding: 16px 24px;
+    padding: 7px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     box-shadow: 0 -4px 12px var(--shadow);
+    transition: background 0.3s ease;
+}
+
+.bottom-panel.sticky-mode {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    background: var(--bg-card);
+    /* slight highlight */
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.8);
+    animation: slideUpSticky 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slideUpSticky {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 .bottom-left {
@@ -481,7 +528,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 2000;
     backdrop-filter: blur(8px);
     animation: fadeIn 0.2s ease;
 }
@@ -725,13 +772,13 @@ body {
 
 /* Loading Overlay */
 .loading-overlay {
-    position: absolute;
+    position: fixed; /* Changed from absolute to fixed to cover everything */
     inset: 0;
     background: rgba(0, 0, 0, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 3000;
     backdrop-filter: blur(8px);
 }
 
@@ -751,16 +798,7 @@ body {
 }
 
 /* Modal */
-.modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(10, 14, 39, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 30;
-    backdrop-filter: blur(8px);
-}
+/* Duplicate definition removed or unified with .modal at line 524 */
 
 .modal-content {
     background: var(--bg-card);
@@ -900,16 +938,19 @@ body {
     flex-direction: column;
     gap: 20px;
 }
+
 .time-picker-wrapper {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
+
 .time-picker-wrapper label {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
 }
+
 .time-picker-box {
     display: flex;
     align-items: center;
@@ -918,15 +959,17 @@ body {
     border: 1px solid #333;
     border-radius: 8px;
     padding: 6px 12px;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
     gap: 6px;
 }
+
 .time-segment {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
 }
+
 .t-btn {
     background: transparent;
     border: none;
@@ -938,13 +981,16 @@ body {
     justify-content: center;
     transition: color 0.15s;
 }
+
 .t-btn svg {
     width: 16px;
     height: 16px;
 }
+
 .t-btn:hover {
     color: #fff;
 }
+
 .t-val {
     background: transparent;
     border: none;
@@ -956,6 +1002,7 @@ body {
     text-align: center;
     outline: none;
 }
+
 .t-sep {
     font-size: 20px;
     font-weight: 600;
@@ -977,13 +1024,15 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
 }
+
 .copy-link-btn:hover {
     color: var(--accent-light);
     background: rgba(255, 255, 255, 0.12);
     border-color: rgba(255, 255, 255, 0.2);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
+
 .svg-icon {
     width: 18px;
     height: 18px;
@@ -991,17 +1040,28 @@ body {
 }
 
 @keyframes spin-linear {
-    100% { transform: rotate(360deg); }
+    100% {
+        transform: rotate(360deg);
+    }
 }
+
 .anim-spin {
     animation: spin-linear 1s linear infinite;
     color: var(--warning);
 }
 
 @keyframes check-draw {
-    0% { stroke-dasharray: 0, 50; stroke-dashoffset: 0; }
-    100% { stroke-dasharray: 50, 0; stroke-dashoffset: 0; }
+    0% {
+        stroke-dasharray: 0, 50;
+        stroke-dashoffset: 0;
+    }
+
+    100% {
+        stroke-dasharray: 50, 0;
+        stroke-dashoffset: 0;
+    }
 }
+
 .check-draw {
     stroke-dasharray: 50;
     animation: check-draw 0.3s ease-in-out forwards;
