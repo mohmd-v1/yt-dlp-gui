@@ -92,17 +92,36 @@
       </div>
       <div class="bottom-right">
         <div style="position: relative; display: inline-block;">
-          <button id="clearSectionBadge" class="hidden" title="Clear Section" style="position: absolute; right: -6px; top: -6px; background: #e53935; color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">✖</button>
+          <button id="clearSectionBadge" class="hidden" title="Clear Section"
+            style="position: absolute; right: -6px; top: -6px; background: #e53935; color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">✖</button>
           <button id="downloadSectionBtn" class="secondary-btn" disabled>Sections</button>
         </div>
-        <button id="downloadBtn" class="primary-btn" disabled>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          Download
-        </button>
+        <div style="position: relative; display: inline-flex; align-items: center;">
+          <!-- Floating Format Tooltip -->
+          <div id="formatTooltip" class="hidden"
+            style="position: absolute; top: -45px; right: 0; background: var(--bg-card); border: 1px solid var(--border-light); padding: 6px 12px; border-radius: 6px; font-size: 0.85em; font-weight: 500; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.5); color: var(--text-primary); align-items: center; gap: 8px; z-index: 20; transition: all 0.2s ease;">
+            <span id="selectedFormatInfoText" style="color: var(--accent-light);"></span>
+            <button id="clearFormatBadge" title="Clear Selection"
+              style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; margin: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: color 0.2s ease;"
+              onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">✖</button>
+            <!-- Down arrow tail -->
+            <div
+              style="position: absolute; bottom: -6px; right: 40px; border-width: 6px 6px 0; border-style: solid; border-color: var(--bg-card) transparent transparent transparent; z-index: 21;">
+            </div>
+            <div
+              style="position: absolute; bottom: -7px; right: 40px; border-width: 6px 6px 0; border-style: solid; border-color: var(--border-light) transparent transparent transparent; z-index: 20;">
+            </div>
+          </div>
+
+          <button id="downloadBtn" class="primary-btn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download
+          </button>
+        </div>
       </div>
     </section>
 
@@ -114,6 +133,23 @@
           <button id="closeSettingsBtn" class="close-btn">×</button>
         </div>
         <div class="modal-body">
+          <!-- YT-DLP CLI -->
+          <div class="setting-group">
+            <h4>YT-DLP CLI</h4>
+            <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <span id="ytdlpVersionText"
+                  style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking version...</span>
+                <button id="updateYtdlpBtn" class="secondary-btn"
+                  style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l5.25 5.25" />
+                  </svg>
+                  Update
+                </button>
+              </div>
+            </div>
+          </div>
           <!-- Download Location -->
           <div class="setting-item">
             <label>Download Location:</label>
@@ -191,6 +227,7 @@
               <small>Continue on download errors</small>
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -242,10 +279,11 @@
         </div>
         <div class="modal-body">
           <p style="margin-bottom: 15px; font-size: 0.9em; color: #ccc;">Download a specific part of the video.</p>
-          
+
           <div id="chapterContainer" class="setting-item hidden" style="margin-bottom: 15px;">
             <label>Select Chapter:</label>
-            <select id="chapterSelect" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; margin-top: 5px;">
+            <select id="chapterSelect"
+              style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; margin-top: 5px;">
               <option value="">-- Custom Time --</option>
             </select>
           </div>
@@ -257,23 +295,41 @@
               <div class="time-picker-box">
                 <!-- H -->
                 <div class="time-segment">
-                  <button class="t-btn t-up" data-target="startH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <button class="t-btn t-up" data-target="startH" data-max="99"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
                   <input type="text" id="startH" value="00" maxlength="2" class="t-val">
-                  <button class="t-btn t-down" data-target="startH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                  <button class="t-btn t-down" data-target="startH" data-max="99"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
                 </div>
                 <div class="t-sep">:</div>
                 <!-- M -->
                 <div class="time-segment">
-                  <button class="t-btn t-up" data-target="startM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <button class="t-btn t-up" data-target="startM" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
                   <input type="text" id="startM" value="00" maxlength="2" class="t-val">
-                  <button class="t-btn t-down" data-target="startM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                  <button class="t-btn t-down" data-target="startM" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
                 </div>
                 <div class="t-sep">:</div>
                 <!-- S -->
                 <div class="time-segment">
-                  <button class="t-btn t-up" data-target="startS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <button class="t-btn t-up" data-target="startS" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
                   <input type="text" id="startS" value="00" maxlength="2" class="t-val">
-                  <button class="t-btn t-down" data-target="startS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                  <button class="t-btn t-down" data-target="startS" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
                 </div>
               </div>
             </div>
@@ -284,23 +340,41 @@
               <div class="time-picker-box">
                 <!-- H -->
                 <div class="time-segment">
-                  <button class="t-btn t-up" data-target="endH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <button class="t-btn t-up" data-target="endH" data-max="99"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
                   <input type="text" id="endH" value="00" maxlength="2" class="t-val">
-                  <button class="t-btn t-down" data-target="endH" data-max="99"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                  <button class="t-btn t-down" data-target="endH" data-max="99"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
                 </div>
                 <div class="t-sep">:</div>
                 <!-- M -->
                 <div class="time-segment">
-                  <button class="t-btn t-up" data-target="endM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <button class="t-btn t-up" data-target="endM" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
                   <input type="text" id="endM" value="00" maxlength="2" class="t-val">
-                  <button class="t-btn t-down" data-target="endM" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                  <button class="t-btn t-down" data-target="endM" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
                 </div>
                 <div class="t-sep">:</div>
                 <!-- S -->
                 <div class="time-segment">
-                  <button class="t-btn t-up" data-target="endS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg></button>
+                  <button class="t-btn t-up" data-target="endS" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg></button>
                   <input type="text" id="endS" value="00" maxlength="2" class="t-val">
-                  <button class="t-btn t-down" data-target="endS" data-max="59"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
+                  <button class="t-btn t-down" data-target="endS" data-max="59"><svg viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg></button>
                 </div>
               </div>
             </div>
