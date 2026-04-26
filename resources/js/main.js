@@ -34,6 +34,9 @@ const el = {
     downloadBtn: document.getElementById('downloadBtn'),
     downloadSectionBtn: document.getElementById('downloadSectionBtn'),
     clearSectionBadge: document.getElementById('clearSectionBadge'),
+    clearFormatBadge: document.getElementById('clearFormatBadge'),
+    formatTooltip: document.getElementById('formatTooltip'),
+    selectedFormatInfoText: document.getElementById('selectedFormatInfoText'),
     toggleSettings: document.getElementById('toggleSettings'),
     toggleCommand: document.getElementById('toggleCommand'),
     settingsModal: document.getElementById('settingsModal'),
@@ -54,6 +57,8 @@ const el = {
         writeSubs: document.getElementById('writeSubs'),
         ignoreErrors: document.getElementById('ignoreErrors')
     },
+    ytdlpVersionText: document.getElementById('ytdlpVersionText'),
+    updateYtdlpBtn: document.getElementById('updateYtdlpBtn'),
     modal: {
         self: document.getElementById('progressModal'),
         bar: document.getElementById('progressBar'),
@@ -107,6 +112,56 @@ Neutralino.events.on("ready", async () => {
     }
 
     loadSettings();
+    checkYtdlpVersion();
+});
+
+// Check YT-DLP Version
+async function checkYtdlpVersion() {
+    try {
+        let output = await Neutralino.os.execCommand('yt-dlp --version');
+        if (output.exitCode === 0) {
+            el.ytdlpVersionText.textContent = `v${output.stdOut.trim()}`;
+            el.ytdlpVersionText.style.color = 'var(--success)';
+        } else {
+            el.ytdlpVersionText.textContent = 'Not Found / Error';
+            el.ytdlpVersionText.style.color = 'var(--danger)';
+        }
+    } catch (err) {
+        el.ytdlpVersionText.textContent = 'Not Installed';
+        el.ytdlpVersionText.style.color = 'var(--danger)';
+        console.error("Failed to check yt-dlp version", err);
+    }
+}
+
+// Update YT-DLP
+el.updateYtdlpBtn.addEventListener('click', async () => {
+    el.updateYtdlpBtn.disabled = true;
+    const originalText = el.updateYtdlpBtn.innerHTML;
+    el.updateYtdlpBtn.innerHTML = 'Updating...';
+    el.ytdlpVersionText.textContent = 'Downloading update...';
+    el.ytdlpVersionText.style.color = 'var(--warning)';
+
+    try {
+        let output = await Neutralino.os.execCommand('yt-dlp -U');
+        console.log("Update output:", output.stdOut);
+        
+        await checkYtdlpVersion(); // re-check after update
+        
+        if (output.stdOut.includes('Up to date') || output.stdOut.includes('Updated to')) {
+            el.ytdlpVersionText.textContent += ' (Updated!)';
+            el.ytdlpVersionText.style.color = 'var(--success)';
+        }
+    } catch (err) {
+        console.error("Failed to update yt-dlp", err);
+        el.ytdlpVersionText.textContent = 'Update failed!';
+        el.ytdlpVersionText.style.color = 'var(--danger)';
+    } finally {
+        setTimeout(() => {
+            el.updateYtdlpBtn.disabled = false;
+            el.updateYtdlpBtn.innerHTML = originalText;
+            checkYtdlpVersion(); // reset text to just the version
+        }, 3000);
+    }
 });
 
 // Call init at the end or here
@@ -163,14 +218,14 @@ document.querySelectorAll('.t-btn').forEach(btn => {
         const max = parseInt(btn.getAttribute('data-max'));
         const input = document.getElementById(targetId);
         if (!input) return;
-        
+
         let val = parseInt(input.value) || 0;
         if (isUp) val++;
         else val--;
-        
+
         if (val < 0) val = max;
         if (val > max) val = 0;
-        
+
         input.value = val.toString().padStart(2, '0');
     });
 });
@@ -195,18 +250,18 @@ document.querySelectorAll('.time-segment').forEach(seg => {
 
 const setTimePicker = (prefix, timeStr) => {
     if (!timeStr) {
-        el.sections[prefix+'H'].value = '00';
-        el.sections[prefix+'M'].value = '00';
-        el.sections[prefix+'S'].value = '00';
+        el.sections[prefix + 'H'].value = '00';
+        el.sections[prefix + 'M'].value = '00';
+        el.sections[prefix + 'S'].value = '00';
         return;
     }
     let parts = timeStr.split(':');
     if (parts.length === 2) parts = ['00', ...parts]; // MM:SS format
     if (parts.length === 1) parts = ['00', '00', ...parts]; // SS format
-    
-    el.sections[prefix+'H'].value = (parts[0] || '0').toString().padStart(2, '0');
-    el.sections[prefix+'M'].value = (parts[1] || '0').toString().padStart(2, '0');
-    el.sections[prefix+'S'].value = (parts[2] || '0').toString().padStart(2, '0');
+
+    el.sections[prefix + 'H'].value = (parts[0] || '0').toString().padStart(2, '0');
+    el.sections[prefix + 'M'].value = (parts[1] || '0').toString().padStart(2, '0');
+    el.sections[prefix + 'S'].value = (parts[2] || '0').toString().padStart(2, '0');
 };
 
 if (el.sections.applyBtn) {
@@ -217,23 +272,23 @@ if (el.sections.applyBtn) {
         const endH = el.sections.endH.value;
         const endM = el.sections.endM.value;
         const endS = el.sections.endS.value;
-        
+
         const start = `${startH}:${startM}:${startS}`;
         const end = `${endH}:${endM}:${endS}`;
-        
+
         if (end !== "00:00:00") {
             sectionTime = `*${start}-${end}`;
             updateCommand();
             el.sections.modal.classList.add('hidden');
             el.statusMsg.textContent = 'Section Applied ✔️';
             el.downloadSectionBtn.style.color = '#4caf50'; // Make button green to indicate active
-            
+
             // Show clear badge and make it flex
-            if(el.clearSectionBadge) {
+            if (el.clearSectionBadge) {
                 el.clearSectionBadge.classList.remove('hidden');
                 el.clearSectionBadge.style.display = 'flex';
             }
-            
+
             setTimeout(() => el.statusMsg.textContent = 'Ready', 2000);
         } else {
             alert('Please specify an end time greater than 00:00:00.');
@@ -250,17 +305,17 @@ if (el.sections.clearBtn) {
         el.sections.modal.classList.add('hidden');
         el.statusMsg.textContent = 'Section Cleared';
         el.downloadSectionBtn.style.color = ''; // Reset button color
-        
+
         // Hide clear badge
-        if(el.clearSectionBadge) el.clearSectionBadge.classList.add('hidden');
-        
+        if (el.clearSectionBadge) el.clearSectionBadge.classList.add('hidden');
+
         setTimeout(() => el.statusMsg.textContent = 'Ready', 2000);
     });
 }
 if (el.clearSectionBadge) {
     el.clearSectionBadge.addEventListener('click', (e) => {
         e.stopPropagation();
-        if(el.sections.clearBtn) el.sections.clearBtn.click();
+        if (el.sections.clearBtn) el.sections.clearBtn.click();
     });
 }
 if (el.sections.chapterSelect) {
@@ -391,7 +446,9 @@ el.modal.open.addEventListener('click', async () => {
     // Use the actual download path from settings
     if (path && path !== 'Downloads') {
         try {
-            await Neutralino.os.execCommand(`explorer "${path}"`);
+            // Fix for Windows Explorer: Convert forward slashes to backslashes
+            let winPath = path.replace(/\//g, '\\');
+            await Neutralino.os.execCommand(`explorer "${winPath}"`);
         } catch (err) {
             console.error("Failed to open folder:", err);
         }
@@ -399,7 +456,8 @@ el.modal.open.addEventListener('click', async () => {
         // Fallback to system downloads if no custom path
         try {
             const downloadsPath = await Neutralino.os.getPath('downloads');
-            await Neutralino.os.execCommand(`explorer "${downloadsPath}"`);
+            let winPath = downloadsPath.replace(/\//g, '\\');
+            await Neutralino.os.execCommand(`explorer "${winPath}"`);
         } catch (err) {
             console.error("Failed to open folder:", err);
         }
@@ -606,7 +664,7 @@ function renderGrid() {
 
         // Helpers
         const resText = fmt.resolution || (fmt.width ? `${fmt.width}x${fmt.height}` : 'Audio');
-        
+
         let size = '-';
         if (fmt.filesize) {
             size = formatBytes(fmt.filesize);
@@ -710,7 +768,43 @@ function updateCommand() {
 
     el.downloadBtn.disabled = (!selectedVideoId && !selectedAudioId);
     if (el.downloadSectionBtn) el.downloadSectionBtn.disabled = el.downloadBtn.disabled;
-    
+
+    // Update Download Button Badge Info
+    let formatInfoText = '';
+    const bottomPanel = document.querySelector('.bottom-panel');
+    if (selectedVideoId || selectedAudioId) {
+        let vFmt = formats.find(f => f.format_id === selectedVideoId);
+        let aFmt = formats.find(f => f.format_id === selectedAudioId);
+
+        if (vFmt && aFmt) {
+            let vC = (vFmt.vcodec || 'none').split('.')[0];
+            let aC = (aFmt.acodec || 'none').split('.')[0];
+            let bitrate = Math.round((vFmt.tbr || 0) + (aFmt.tbr || 0));
+            formatInfoText = `${vFmt.resolution || 'N/A'} • ${vC}+${aC} • ${bitrate}k`;
+        } else if (vFmt) {
+            let vC = (vFmt.vcodec || 'none').split('.')[0];
+            let bitrate = Math.round(vFmt.tbr || 0);
+            formatInfoText = `${vFmt.resolution || 'N/A'} • ${vC}${bitrate ? ` • ${bitrate}k` : ''}`;
+        } else if (aFmt) {
+            let aC = (aFmt.acodec || 'none').split('.')[0];
+            formatInfoText = `Audio • ${aC} • ${Math.round(aFmt.tbr || 0)}k`;
+        }
+        if (bottomPanel) bottomPanel.classList.add('sticky-mode');
+    } else {
+        if (bottomPanel) bottomPanel.classList.remove('sticky-mode');
+    }
+
+    if (el.formatTooltip && el.selectedFormatInfoText) {
+        if (formatInfoText) {
+            el.selectedFormatInfoText.textContent = formatInfoText;
+            el.formatTooltip.classList.remove('hidden');
+            el.formatTooltip.style.display = 'flex';
+        } else {
+            el.formatTooltip.classList.add('hidden');
+            el.formatTooltip.style.display = 'none';
+        }
+    }
+
     if (!selectedVideoId && !selectedAudioId && el.downloadBtn.disabled) {
         el.cmdPreview.value = "Select a stream to generate command...";
         return;
@@ -737,6 +831,17 @@ function updateCommand() {
     // Clean up extra spaces
     cmd = cmd.replace(/\s+/g, ' ').trim();
     el.cmdPreview.value = cmd;
+}
+
+// Clear format badge listener
+if (el.clearFormatBadge) {
+    el.clearFormatBadge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedVideoId = null;
+        selectedAudioId = null;
+        renderGrid();
+        updateCommand();
+    });
 }
 
 async function startDownload() {
@@ -851,7 +956,7 @@ async function copyDirectLink(formatId, btnElement) {
             // It usually prints them on separate lines.
             let directLink = output.stdOut.trim();
             await Neutralino.clipboard.writeText(directLink);
-            
+
             // Show success
             btnElement.innerHTML = checkIcon;
             btnElement.title = 'Copied!';
@@ -882,6 +987,19 @@ async function copyDirectLink(formatId, btnElement) {
     }
 }
 
+// Float tabs on scroll
+window.addEventListener('scroll', () => {
+    const tabs = document.querySelector('.tabs');
+    if (!tabs) return;
+
+    // Check scroll position. 200px is roughly below the search input and video info
+    if (window.scrollY > 350) {
+        tabs.classList.add('tabs-floating');
+    } else {
+        tabs.classList.remove('tabs-floating');
+    }
+});
+
 // Helpers
 function setLoading(isLoading) {
     if (isLoading) el.loadingOverlay.classList.remove('hidden');
@@ -903,7 +1021,7 @@ function formatDuration(seconds) {
     const m = Math.floor((seconds % 3600) / 60);
     const s = Math.floor(seconds % 60);
     if (h > 0) {
-       return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
