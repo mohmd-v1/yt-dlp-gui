@@ -286,19 +286,17 @@ body {
 
 .grid-header {
     display: grid;
-    grid-template-columns: 60px 60px 100px 60px 80px 120px 120px 90px 1fr;
+    grid-template-columns: 70px 60px 110px 60px 100px 1fr 1fr 100px 70px;
     background: var(--bg-secondary);
-    padding: 16px 20px;
+    padding: 12px 20px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
     border-bottom: 2px solid var(--border);
     flex-shrink: 0;
-    grid-auto-flow: column dense;
-
-    /* Don't shrink */
+    align-items: center;
 }
 
 .grid-body {
@@ -331,16 +329,13 @@ body {
 
 .grid-row {
     display: grid;
-    grid-template-columns: 60px 60px 100px 60px 80px 120px 120px 90px 1fr;
+    grid-template-columns: 70px 60px 110px 60px 100px 1fr 1fr 100px 70px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
     transition: all 0.15s ease;
     align-items: center;
     min-height: 52px;
     padding: 8px 20px;
-    grid-auto-flow: column;
-    align-items: center;
-    justify-items: center;
 }
 
 .grid-row:hover {
@@ -401,6 +396,35 @@ body {
 .res-audio {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     color: white;
+}
+
+/* Grid Selectors */
+.res-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: pointer;
+    outline: none;
+    font-family: var(--font-ui);
+    transition: var(--transition);
+}
+
+.res-select:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.res-select option {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.col select {
+    width: 100%;
+    max-width: 90px;
 }
 
 /* Codec Colors */
@@ -533,14 +557,35 @@ body {
     animation: fadeIn 0.2s ease;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
+/* Info Note */
+.info-note {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 12px 20px;
+    border-radius: var(--radius-sm);
+    color: var(--accent-light);
+    font-size: 13px;
+    margin-bottom: 12px;
+    animation: fadeIn 0.3s ease;
+}
 
-    to {
-        opacity: 1;
-    }
+.info-note svg {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+
+.info-note strong {
+    color: white;
+    font-weight: 600;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .modal-content {
