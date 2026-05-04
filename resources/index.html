@@ -18,6 +18,9 @@
       <div class="input-group">
         <input type="text" id="urlInput" placeholder="Paste Video URL here..." spellcheck="false">
         <button id="analyzeBtn" class="primary-btn">Analyze</button>
+        <button id="analyzePlaylistBtn" class="primary-btn"
+          style="background: linear-gradient(135deg, #b9101037 0%, #9605057b 100%);"
+          title="Analyze as Playlist">Playlist</button>
         <button id="quickM4aBtn" class="secondary-btn" title="Quick Download Audio (m4a)">M4A</button>
       </div>
     </header>
@@ -202,6 +205,19 @@
           <!-- Download Behavior -->
           <div class="setting-group">
             <h4>Download Behavior</h4>
+
+            <div class="setting-item"
+              style="flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px;">
+              <label style="font-size: 13px; font-weight: 500; color: var(--text-primary);">Number of Fragments
+                (Concurrent)</label>
+              <div style="display: flex; gap: 8px; width: 100%;">
+                <input type="number" id="concurrentFragments" min="1" max="32" value="1"
+                  style="background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-primary); padding: 8px 12px; border-radius: var(--radius-sm); font-family: var(--font-ui); font-size: 13px; width: 80px;">
+                <small style="color: var(--text-muted); display: flex; align-items: center;">Use multiple threads for
+                  DASH/HLS (Default: 1)</small>
+              </div>
+            </div>
+
             <div class="setting-item">
               <label class="toggle-switch">
                 <input type="checkbox" id="noPlaylist" checked>
@@ -383,6 +399,33 @@
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
             <button id="clearSectionBtn" class="secondary-btn">Clear</button>
             <button id="applySectionBtn" class="primary-btn">Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playlist Selection Modal -->
+    <div id="playlistModal" class="modal hidden">
+      <div class="modal-content" style="max-width: 600px; width: 90%;">
+        <div class="modal-header">
+          <h3>📑 Select Playlist Videos</h3>
+          <button id="closePlaylistBtn" class="close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 15px; font-size: 0.9em; color: #ccc;">Select which videos from the playlist you want
+            to download.</p>
+          <div style="margin-bottom: 15px; display: flex; gap: 8px;">
+            <button id="selectAllPlaylistBtn" class="secondary-btn" style="padding: 4px 10px; font-size: 12px;">Select
+              All</button>
+            <button id="deselectAllPlaylistBtn" class="secondary-btn"
+              style="padding: 4px 10px; font-size: 12px;">Deselect All</button>
+          </div>
+          <div id="playlistItems"
+            style="display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; background: var(--bg-secondary); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <!-- Items injected here -->
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
+            <button id="confirmPlaylistBtn" class="primary-btn">Confirm & Load Formats</button>
           </div>
         </div>
       </div>
