@@ -217,6 +217,13 @@ el.closeCommandBtn.addEventListener('click', () => {
     el.commandModal.classList.add('hidden');
 });
 
+const openGithubBtn = document.getElementById('openGithubBtn');
+if (openGithubBtn) {
+    openGithubBtn.addEventListener('click', () => {
+        Neutralino.os.open('https://github.com/mohmd-v1/yt-dlp-gui');
+    });
+}
+
 // Playlist Listeners
 el.playlist.closeBtn.addEventListener('click', () => {
     el.playlist.modal.classList.add('hidden');
