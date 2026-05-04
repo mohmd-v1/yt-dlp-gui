@@ -772,7 +772,8 @@ body {
 
 /* Loading Overlay */
 .loading-overlay {
-    position: fixed; /* Changed from absolute to fixed to cover everything */
+    position: fixed;
+    /* Changed from absolute to fixed to cover everything */
     inset: 0;
     background: rgba(0, 0, 0, 0.95);
     display: flex;
