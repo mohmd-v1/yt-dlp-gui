@@ -3,22 +3,24 @@
 let currentData = null;
 let formats = [];
 let metadata = null;
-let selectedFormat = null;
+let selectedVideoId = null;
+let selectedAudioId = null;
 let activeTab = 'video'; // video, audio, mixed
 let currentDownloadProcess = null; // Track current download process
 let sectionTime = ''; // Track download section time e.g. "*00:02:00-00:05:10"
 let currentPlaylistData = null;
 let playlistItemsToDownload = []; // Array of indices (1-indexed)
 let isPlaylistMode = false;
+let resolutionSelections = {}; // Track user selections per resolution: { '1920x1080': { cType: 'av01', formatId: '...' } }
 let settings = {
     downloadPath: 'Downloads', // Default relative
     cookiesPath: '', // Cookies file path
-    embedMetadata: true,
-    embedThumbnail: true,
+    embedMetadata: false,
+    embedThumbnail: false,
     restrictFilenames: false,
-    noPlaylist: true,
+    noPlaylist: false,
     writeSubs: false,
-    ignoreErrors: true,
+    ignoreErrors: false,
     concurrentFragments: 1
 };
 
@@ -44,6 +46,7 @@ const el = {
     selectedFormatInfoText: document.getElementById('selectedFormatInfoText'),
     toggleSettings: document.getElementById('toggleSettings'),
     toggleCommand: document.getElementById('toggleCommand'),
+    videoOnlyNote: document.getElementById('videoOnlyNote'),
     settingsModal: document.getElementById('settingsModal'),
     commandModal: document.getElementById('commandModal'),
     closeSettingsBtn: document.getElementById('closeSettingsBtn'),
@@ -158,9 +161,9 @@ el.updateYtdlpBtn.addEventListener('click', async () => {
     try {
         let output = await Neutralino.os.execCommand('yt-dlp -U');
         console.log("Update output:", output.stdOut);
-        
+
         await checkYtdlpVersion(); // re-check after update
-        
+
         if (output.stdOut.includes('Up to date') || output.stdOut.includes('Updated to')) {
             el.ytdlpVersionText.textContent += ' (Updated!)';
             el.ytdlpVersionText.style.color = 'var(--success)';
@@ -248,14 +251,14 @@ el.playlist.confirmBtn.addEventListener('click', async () => {
     // Analyze the first selected item to get formats for quality selection
     const firstItem = currentPlaylistData.entries[playlistItemsToDownload[0] - 1];
     const firstUrl = firstItem.url || firstItem.webpage_url || firstItem.id;
-    
+
     // Temporarily set URL input to first item to analyze its formats
     const originalUrl = el.urlInput.value;
     el.urlInput.value = firstUrl;
-    
+
     // Run normal analyzeUrl but we'll need to restore the original playlist URL for command generation
     await analyzeUrl(true); // pass true to indicate we're in playlist format mode
-    
+
     el.urlInput.value = originalUrl;
     updateCommand();
 });
@@ -600,9 +603,18 @@ async function smartAnalyze() {
 
     try {
         let cookiesArg = settings.cookiesPath ? `--cookies "${settings.cookiesPath}"` : '';
-        // Step 1: Check if it's a playlist or a single video using --flat-playlist
+        
+        // Optimization: If URL doesn't look like a playlist, skip the flat-playlist check
+        const looksLikePlaylist = url.includes('list=') || url.includes('/playlist?');
+        
+        if (!looksLikePlaylist) {
+            await analyzeUrl();
+            return;
+        }
+
+        // Step 1: Check if it's actually a playlist using --flat-playlist
         let command = `yt-dlp -J --flat-playlist ${cookiesArg} "${url}"`;
-        console.log("Smart Analysis:", command);
+        console.log("Smart Analysis (Playlist Check):", command);
 
         let output = await Neutralino.os.execCommand(command);
 
@@ -753,137 +765,218 @@ async function quickM4a() {
 
 function renderGrid() {
     el.gridBody.innerHTML = '';
+    const duration = currentData?.duration || 1;
+
+    // Tab Visibility Logic
+    const counts = {
+        video: formats.filter(f => (f.vcodec && f.vcodec !== 'none') && (!f.acodec || f.acodec === 'none')).length,
+        audio: formats.filter(f => (f.acodec && f.acodec !== 'none') && (!f.vcodec || f.vcodec === 'none')).length,
+        mixed: formats.filter(f => (f.vcodec && f.vcodec !== 'none') && (f.acodec && f.acodec !== 'none')).length
+    };
+
+    let firstAvailable = null;
+    el.tabs.forEach(btn => {
+        const tab = btn.dataset.tab;
+        const hasItems = counts[tab] > 0;
+        btn.classList.toggle('hidden', !hasItems);
+        if (hasItems && !firstAvailable) firstAvailable = tab;
+    });
+
+    // Show/Hide Video Only Note
+    if (el.videoOnlyNote) {
+        el.videoOnlyNote.classList.toggle('hidden', activeTab !== 'video');
+    }
+
+    // Auto-switch if current tab is empty
+    if (counts[activeTab] === 0 && firstAvailable) {
+        activeTab = firstAvailable;
+        el.tabs.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === activeTab);
+        });
+    }
 
     // Filter formats
-    let displayFormats = formats.filter(f => {
+    let filtered = formats.filter(f => {
         const isVideo = (f.vcodec && f.vcodec !== 'none');
         const isAudio = (f.acodec && f.acodec !== 'none');
-
         if (activeTab === 'video') return isVideo && !isAudio;
         if (activeTab === 'audio') return isAudio && !isVideo;
         if (activeTab === 'mixed') return isVideo && isAudio;
         return false;
     });
 
-    if (activeTab === 'video' || activeTab === 'mixed') {
-        // Smart filtering: best codec of each type per resolution
-        const bestFormats = new Map();
-
-        displayFormats.forEach(f => {
-            const h = f.height || 0;
-            const w = f.width || 0;
-            const resKey = `${w}x${h}`; // Group by resolution
-            const vc = f.vcodec || '';
-            let cType = 'other';
-            if (vc.includes('av01')) cType = 'av01';
-            else if (vc.includes('vp9')) cType = 'vp9';
-            else if (vc.includes('avc') || vc.includes('mp4v')) cType = 'avc';
-            else if (vc.includes('hev') || vc.includes('hvc')) cType = 'hevc';
-
-            const groupKey = `${resKey}_${cType}`;
-            
-            // Calculate bitrate for comparison
-            let bitrate = f.tbr || f.vbr || ((f.filesize || f.filesize_approx || 0) * 8 / 1024 / (currentData?.duration || 1));
-
-            if (!bestFormats.has(groupKey)) {
-                bestFormats.set(groupKey, f);
-            } else {
-                let existing = bestFormats.get(groupKey);
-                let existingBitrate = existing.tbr || existing.vbr || ((existing.filesize || existing.filesize_approx || 0) * 8 / 1024 / (currentData?.duration || 1));
-                if (bitrate > existingBitrate) {
-                    bestFormats.set(groupKey, f);
-                }
-            }
-        });
-        displayFormats = Array.from(bestFormats.values());
+    if (activeTab === 'audio') {
+        // Simple list for audio
+        filtered.sort((a, b) => (b.tbr || 0) - (a.tbr || 0));
+        filtered.forEach(fmt => renderRow(fmt));
+        return;
     }
 
-    // Sort: Best resolution/bitrate first
-    displayFormats.sort((a, b) => {
-        // Simple sort by tbr (total bitrate) or filesize if available
-        let aSize = a.filesize || a.filesize_approx || ((a.tbr || 0) * 1024 / 8 * (currentData?.duration || 0));
-        let bSize = b.filesize || b.filesize_approx || ((b.tbr || 0) * 1024 / 8 * (currentData?.duration || 0));
+    // Advanced Grouping for Video/Mixed
+    const groups = {}; // resKey -> { cType -> [formats] }
+    const codecPriority = { 'av01': 4, 'hevc': 3, 'vp9': 2, 'avc': 1, 'other': 0 };
+
+    filtered.forEach(f => {
+        const resKey = f.width ? `${f.width}x${f.height}` : 'Audio';
+        if (!groups[resKey]) groups[resKey] = {};
         
-        // Also sort by resolution first if available
-        let aRes = (a.width || 0) * (a.height || 0);
-        let bRes = (b.width || 0) * (b.height || 0);
+        const vc = f.vcodec || '';
+        let cType = 'other';
+        if (vc.includes('av01')) cType = 'av01';
+        else if (vc.includes('vp9')) cType = 'vp9';
+        else if (vc.includes('avc') || vc.includes('mp4v')) cType = 'avc';
+        else if (vc.includes('hev') || vc.includes('hvc')) cType = 'hevc';
         
-        if (aRes !== bRes) return bRes - aRes;
-        
-        return (b.tbr || bSize || 0) - (a.tbr || aSize || 0);
+        if (!groups[resKey][cType]) groups[resKey][cType] = [];
+        groups[resKey][cType].push(f);
     });
 
-    displayFormats.forEach(fmt => {
-        const row = document.createElement('div');
-        row.className = 'grid-row';
-        row.dataset.id = fmt.format_id;
-
-        // Determine selection state
-        if (fmt.format_id === selectedVideoId || fmt.format_id === selectedAudioId) {
-            row.classList.add('selected');
-        }
-
-        row.onclick = () => handleRowClick(fmt, row);
-
-        // Badge Logic
-        // Resolution specific
-        let resClass = 'res-sd';
-        const h = fmt.height || 0;
-        const w = fmt.width || 0;
-        if (h >= 2160 || w >= 3840) resClass = 'res-4k';
-        else if (h >= 1440) resClass = 'res-1440';
-        else if (h >= 1080) resClass = 'res-1080';
-        else if (h >= 720) resClass = 'res-720';
-        else if (fmt.acodec !== 'none' && fmt.vcodec === 'none') resClass = 'res-audio';
-
-        // Codec specific
-        const vc = fmt.vcodec || 'none';
-        const ac = fmt.acodec || 'none';
-
-        let vcClass = (vc.includes('av01') || vc.includes('vp9')) ? 'codec-mod' : (vc !== 'none' ? 'codec-leg' : 'codec-none');
-        let acClass = (ac.includes('opus') || ac.includes('mp4a')) ? 'codec-mod' : (ac !== 'none' ? 'codec-leg' : 'codec-none');
-
-        // Helpers
-        const resText = fmt.resolution || (fmt.width ? `${fmt.width}x${fmt.height}` : 'Audio');
-
-        let size = '-';
-        if (fmt.filesize) {
-            size = formatBytes(fmt.filesize);
-        } else if (fmt.filesize_approx) {
-            size = '~' + formatBytes(fmt.filesize_approx);
-        } else if ((fmt.tbr || fmt.vbr || fmt.abr) && currentData && currentData.duration) {
-            const bitrate = fmt.tbr || ((fmt.vbr || 0) + (fmt.abr || 0));
-            const estBytes = (bitrate * 1024 / 8) * currentData.duration;
-            size = '≈' + formatBytes(estBytes);
-        }
-
-        row.innerHTML = `
-            <div class="col">${fmt.format_id}</div>
-            <div class="col">${fmt.ext}</div>
-            <div class="col"><span class="badge ${resClass}">${resText}</span></div>
-            <div class="col">${fmt.fps || ''}</div>
-            <div class="col">${size}</div>
-            <div class="col"><span class="badge ${vcClass}">${vc}</span></div>
-            <div class="col"><span class="badge ${acClass}">${ac}</span></div>
-            <div class="col">${Math.round(fmt.tbr || 0)}k</div>
-            <div class="col" title="${fmt.format_note || ''}">${fmt.format_note || ''}</div>
-            <div class="col" style="flex: 0.5; text-align: center;">
-                <button class="copy-link-btn" title="Copy direct stream URL (-g)">
-                   <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                </button>
-            </div>
-        `;
-
-        const copyBtn = row.querySelector('.copy-link-btn');
-        if (copyBtn) {
-            copyBtn.onclick = (e) => {
-                e.stopPropagation(); // prevent row click selection
-                copyDirectLink(fmt.format_id, copyBtn);
-            };
-        }
-
-        el.gridBody.appendChild(row);
+    // Sort resolutions (highest first)
+    const sortedResKeys = Object.keys(groups).sort((a, b) => {
+        const [w1, h1] = a.split('x').map(Number);
+        const [w2, h2] = b.split('x').map(Number);
+        return (w2 * h2 || 0) - (w1 * h1 || 0);
     });
+
+    sortedResKeys.forEach(resKey => {
+        const resGroup = groups[resKey];
+        const availableCTypes = Object.keys(resGroup).sort((a, b) => codecPriority[b] - codecPriority[a]);
+        
+        // Use previous selection or default to best
+        let currentCType = resolutionSelections[resKey]?.cType;
+        if (!currentCType || !availableCTypes.includes(currentCType)) {
+            currentCType = availableCTypes[0];
+        }
+
+        const formatsForCType = resGroup[currentCType].sort((a, b) => (b.tbr || b.vbr || 0) - (a.tbr || a.vbr || 0));
+        
+        let currentFormatId = resolutionSelections[resKey]?.formatId;
+        let activeFmt = formatsForCType.find(f => f.format_id === currentFormatId) || formatsForCType[0];
+
+        renderSmartRow(resKey, availableCTypes, currentCType, formatsForCType, activeFmt, resGroup);
+    });
+}
+
+function renderSmartRow(resKey, ctypes, activeCType, variants, activeFmt, resGroup) {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+    if (activeFmt.format_id === selectedVideoId || activeFmt.format_id === selectedAudioId) {
+        row.classList.add('selected');
+    }
+
+    // Determine Res Class
+    let resClass = 'res-sd';
+    if (activeFmt.height >= 2160) resClass = 'res-4k';
+    else if (activeFmt.height >= 1440) resClass = 'res-1440';
+    else if (activeFmt.height >= 1080) resClass = 'res-1080';
+    else if (activeFmt.height >= 720) resClass = 'res-720';
+
+    const size = activeFmt.filesize ? formatBytes(activeFmt.filesize) : (activeFmt.filesize_approx ? '~' + formatBytes(activeFmt.filesize_approx) : '≈' + formatBytes(((activeFmt.tbr || 0) * 1024 / 8) * (currentData?.duration || 0)));
+
+    const codecHTML = ctypes.length > 1 
+        ? `<select class="res-select codec-select">
+            ${ctypes.map(c => `<option value="${c}" ${c === activeCType ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('')}
+           </select>`
+        : `<span class="badge codec-mod">${activeCType.toUpperCase()}</span>`;
+
+    const bitrateHTML = variants.length > 1
+        ? `<select class="res-select bitrate-select">
+            ${variants.map(v => `<option value="${v.format_id}" ${v.format_id === activeFmt.format_id ? 'selected' : ''}>${Math.round(v.tbr || v.vbr || 0)}k</option>`).join('')}
+           </select>`
+        : `<span>${Math.round(activeFmt.tbr || activeFmt.vbr || 0)}k</span>`;
+
+    row.innerHTML = `
+        <div class="col">${activeFmt.format_id}</div>
+        <div class="col">${activeFmt.ext}</div>
+        <div class="col"><span class="badge ${resClass}">${resKey}</span></div>
+        <div class="col">${activeFmt.fps || ''}</div>
+        <div class="col">${size}</div>
+        <div class="col">${codecHTML}</div>
+        <div class="col">${activeFmt.acodec || 'none'}</div>
+        <div class="col">${bitrateHTML}</div>
+        <div class="col" style="text-align: center;">
+            <button class="copy-link-btn" title="Copy URL">
+               <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+        </div>
+    `;
+
+    // Row Click (Selection)
+    row.addEventListener('click', (e) => {
+        if (e.target.tagName === 'SELECT' || e.target.closest('.copy-link-btn')) return;
+        handleRowClick(activeFmt, row);
+    });
+
+    // Selectors
+    const codecSel = row.querySelector('.codec-select');
+    if (codecSel) {
+        codecSel.addEventListener('change', (e) => {
+            const newCType = e.target.value;
+            const variants = resGroup[newCType].sort((a, b) => (b.tbr || b.vbr || 0) - (a.tbr || a.vbr || 0));
+            const firstVariant = variants[0];
+            
+            if (activeFmt.format_id === selectedVideoId) {
+                selectedVideoId = firstVariant.format_id;
+            }
+            
+            resolutionSelections[resKey] = { cType: newCType, formatId: firstVariant.format_id };
+            renderGrid();
+            updateCommand();
+        });
+    }
+
+    const bitSel = row.querySelector('.bitrate-select');
+    if (bitSel) {
+        bitSel.addEventListener('change', (e) => {
+            const newId = e.target.value;
+            
+            if (activeFmt.format_id === selectedVideoId) {
+                selectedVideoId = newId;
+            }
+            
+            resolutionSelections[resKey] = { cType: activeCType, formatId: newId };
+            renderGrid();
+            updateCommand();
+        });
+    }
+
+    const copyBtn = row.querySelector('.copy-link-btn');
+    copyBtn.addEventListener('click', () => copyDirectLink(activeFmt.format_id, copyBtn));
+
+    el.gridBody.appendChild(row);
+}
+
+function renderRow(fmt) {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+    row.dataset.id = fmt.format_id;
+    if (fmt.format_id === selectedVideoId || fmt.format_id === selectedAudioId) row.classList.add('selected');
+    
+    row.onclick = () => handleRowClick(fmt, row);
+    
+    const size = fmt.filesize ? formatBytes(fmt.filesize) : (fmt.filesize_approx ? '~' + formatBytes(fmt.filesize_approx) : '≈' + formatBytes(((fmt.tbr || 0) * 1024 / 8) * (currentData?.duration || 0)));
+
+    row.innerHTML = `
+        <div class="col">${fmt.format_id}</div>
+        <div class="col">${fmt.ext}</div>
+        <div class="col"><span class="badge res-audio">Audio</span></div>
+        <div class="col">-</div>
+        <div class="col">${size}</div>
+        <div class="col">-</div>
+        <div class="col"><span class="badge codec-mod">${fmt.acodec}</span></div>
+        <div class="col">${Math.round(fmt.tbr || 0)}k</div>
+        <div class="col" style="text-align: center;">
+            <button class="copy-link-btn" title="Copy URL">
+               <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+        </div>
+    `;
+    const copyBtn = row.querySelector('.copy-link-btn');
+    copyBtn.onclick = (e) => {
+        e.stopPropagation();
+        copyDirectLink(fmt.format_id, copyBtn);
+    };
+    el.gridBody.appendChild(row);
 }
 
 function handleRowClick(fmt, rowElement) {
@@ -998,7 +1091,7 @@ function updateCommand() {
     if (settings.noPlaylist) flags.push('--no-playlist');
     if (settings.writeSubs) flags.push('--write-subs');
     if (settings.ignoreErrors) flags.push('--ignore-errors');
-    
+
     if (settings.concurrentFragments > 1) {
         flags.push(`-N ${settings.concurrentFragments}`);
     }
