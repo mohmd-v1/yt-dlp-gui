@@ -7,6 +7,9 @@ let selectedFormat = null;
 let activeTab = 'video'; // video, audio, mixed
 let currentDownloadProcess = null; // Track current download process
 let sectionTime = ''; // Track download section time e.g. "*00:02:00-00:05:10"
+let currentPlaylistData = null;
+let playlistItemsToDownload = []; // Array of indices (1-indexed)
+let isPlaylistMode = false;
 let settings = {
     downloadPath: 'Downloads', // Default relative
     cookiesPath: '', // Cookies file path
@@ -15,13 +18,15 @@ let settings = {
     restrictFilenames: false,
     noPlaylist: true,
     writeSubs: false,
-    ignoreErrors: true
+    ignoreErrors: true,
+    concurrentFragments: 1
 };
 
 // Elements
 const el = {
     urlInput: document.getElementById('urlInput'),
     analyzeBtn: document.getElementById('analyzeBtn'),
+    analyzePlaylistBtn: document.getElementById('analyzePlaylistBtn'),
     quickM4aBtn: document.getElementById('quickM4aBtn'),
     loadingOverlay: document.getElementById('loadingOverlay'),
     contentArea: document.getElementById('contentArea'),
@@ -55,7 +60,8 @@ const el = {
         restrict: document.getElementById('restrictFilenames'),
         noPlaylist: document.getElementById('noPlaylist'),
         writeSubs: document.getElementById('writeSubs'),
-        ignoreErrors: document.getElementById('ignoreErrors')
+        ignoreErrors: document.getElementById('ignoreErrors'),
+        concurrentFragments: document.getElementById('concurrentFragments')
     },
     ytdlpVersionText: document.getElementById('ytdlpVersionText'),
     updateYtdlpBtn: document.getElementById('updateYtdlpBtn'),
@@ -82,6 +88,14 @@ const el = {
         clearBtn: document.getElementById('clearSectionBtn'),
         chapterContainer: document.getElementById('chapterContainer'),
         chapterSelect: document.getElementById('chapterSelect')
+    },
+    playlist: {
+        modal: document.getElementById('playlistModal'),
+        items: document.getElementById('playlistItems'),
+        closeBtn: document.getElementById('closePlaylistBtn'),
+        selectAllBtn: document.getElementById('selectAllPlaylistBtn'),
+        deselectAllBtn: document.getElementById('deselectAllPlaylistBtn'),
+        confirmBtn: document.getElementById('confirmPlaylistBtn')
     }
 };
 
@@ -168,10 +182,11 @@ el.updateYtdlpBtn.addEventListener('click', async () => {
 Neutralino.init();
 
 // Event Listeners
-el.analyzeBtn.addEventListener('click', analyzeUrl);
+el.analyzeBtn.addEventListener('click', smartAnalyze);
+el.analyzePlaylistBtn.addEventListener('click', smartAnalyze);
 el.quickM4aBtn.addEventListener('click', quickM4a);
 el.urlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') analyzeUrl();
+    if (e.key === 'Enter') smartAnalyze();
 });
 
 el.tabs.forEach(btn => {
@@ -197,6 +212,52 @@ el.toggleCommand.addEventListener('click', () => {
 
 el.closeCommandBtn.addEventListener('click', () => {
     el.commandModal.classList.add('hidden');
+});
+
+// Playlist Listeners
+el.playlist.closeBtn.addEventListener('click', () => {
+    el.playlist.modal.classList.add('hidden');
+});
+
+el.playlist.selectAllBtn.addEventListener('click', () => {
+    const checks = el.playlist.items.querySelectorAll('input[type="checkbox"]');
+    checks.forEach(c => c.checked = true);
+});
+
+el.playlist.deselectAllBtn.addEventListener('click', () => {
+    const checks = el.playlist.items.querySelectorAll('input[type="checkbox"]');
+    checks.forEach(c => c.checked = false);
+});
+
+el.playlist.confirmBtn.addEventListener('click', async () => {
+    const selected = [];
+    const checks = el.playlist.items.querySelectorAll('input[type="checkbox"]');
+    checks.forEach(c => {
+        if (c.checked) selected.push(parseInt(c.dataset.index));
+    });
+
+    if (selected.length === 0) {
+        alert("Please select at least one video.");
+        return;
+    }
+
+    playlistItemsToDownload = selected.sort((a, b) => a - b);
+    isPlaylistMode = true;
+    el.playlist.modal.classList.add('hidden');
+
+    // Analyze the first selected item to get formats for quality selection
+    const firstItem = currentPlaylistData.entries[playlistItemsToDownload[0] - 1];
+    const firstUrl = firstItem.url || firstItem.webpage_url || firstItem.id;
+    
+    // Temporarily set URL input to first item to analyze its formats
+    const originalUrl = el.urlInput.value;
+    el.urlInput.value = firstUrl;
+    
+    // Run normal analyzeUrl but we'll need to restore the original playlist URL for command generation
+    await analyzeUrl(true); // pass true to indicate we're in playlist format mode
+    
+    el.urlInput.value = originalUrl;
+    updateCommand();
 });
 
 // Sections Listeners
@@ -394,6 +455,16 @@ checkboxes.forEach(key => {
     }
 });
 
+if (el.inputs.concurrentFragments) {
+    el.inputs.concurrentFragments.addEventListener('input', () => {
+        let val = parseInt(el.inputs.concurrentFragments.value);
+        if (isNaN(val) || val < 1) val = 1;
+        settings.concurrentFragments = val;
+        updateCommand();
+        saveSettings();
+    });
+}
+
 el.downloadBtn.addEventListener('click', startDownload);
 
 function closeModal() {
@@ -494,6 +565,7 @@ async function loadSettings() {
     el.inputs.noPlaylist.checked = settings.noPlaylist;
     el.inputs.writeSubs.checked = settings.writeSubs;
     el.inputs.ignoreErrors.checked = settings.ignoreErrors;
+    el.inputs.concurrentFragments.value = settings.concurrentFragments || 1;
 
     // Log cookies status for debugging
     if (settings.cookiesPath) {
@@ -517,7 +589,73 @@ async function saveSettings() {
 }
 
 // Logic
-async function analyzeUrl() {
+async function smartAnalyze() {
+    const url = el.urlInput.value.trim();
+    if (!url) return;
+
+    setLoading(true);
+    resetSelection();
+    isPlaylistMode = false;
+    playlistItemsToDownload = [];
+
+    try {
+        let cookiesArg = settings.cookiesPath ? `--cookies "${settings.cookiesPath}"` : '';
+        // Step 1: Check if it's a playlist or a single video using --flat-playlist
+        let command = `yt-dlp -J --flat-playlist ${cookiesArg} "${url}"`;
+        console.log("Smart Analysis:", command);
+
+        let output = await Neutralino.os.execCommand(command);
+
+        if (output.exitCode !== 0) {
+            alert("Error analyzing URL:\n" + output.stdErr);
+            setLoading(false);
+            return;
+        }
+
+        const data = JSON.parse(output.stdOut);
+
+        // Check if it's a playlist with multiple entries
+        if (data.entries && data.entries.length > 1) {
+            currentPlaylistData = data;
+            populatePlaylistModal(data);
+            el.playlist.modal.classList.remove('hidden');
+            setLoading(false);
+        } else {
+            // It's a single video or a 1-item playlist
+            // Proceed to full analysis for formats
+            await analyzeUrl();
+        }
+
+    } catch (e) {
+        alert("Exception during analysis: " + e.message);
+        setLoading(false);
+    }
+}
+
+function populatePlaylistModal(data) {
+    el.playlist.items.innerHTML = '';
+    data.entries.forEach((entry, idx) => {
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.gap = '10px';
+        item.style.padding = '8px';
+        item.style.borderBottom = '1px solid var(--border-light)';
+
+        const index = idx + 1;
+        item.innerHTML = `
+            <input type="checkbox" id="pl-item-${index}" data-index="${index}" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="pl-item-${index}" style="flex: 1; cursor: pointer; font-size: 13px;">
+                <span style="color: var(--accent-light); font-weight: bold; margin-right: 5px;">${index}.</span>
+                ${entry.title || 'Unknown Title'}
+                ${entry.duration ? `<span style="color: var(--text-muted); font-size: 11px; margin-left: 10px;">(${formatDuration(entry.duration)})</span>` : ''}
+            </label>
+        `;
+        el.playlist.items.appendChild(item);
+    });
+}
+
+async function analyzeUrl(isPlaylistFormatMode = false) {
     const url = el.urlInput.value.trim();
     if (!url) return;
 
@@ -568,6 +706,9 @@ async function analyzeUrl() {
 
         // Display video info
         let title = data.title || 'Unknown Title';
+        if (isPlaylistFormatMode) {
+            title = `[Playlist Selection] ${title}`;
+        }
         let duration = data.duration ? formatDuration(data.duration) : 'N/A';
         let uploader = data.uploader || 'Unknown';
         el.videoInfo.textContent = `${title} | Duration: ${duration} | Uploader: ${uploader}`;
@@ -615,20 +756,60 @@ function renderGrid() {
 
     // Filter formats
     let displayFormats = formats.filter(f => {
-        const isVideo = f.vcodec !== 'none';
-        const isAudio = f.acodec !== 'none';
+        const isVideo = (f.vcodec && f.vcodec !== 'none');
+        const isAudio = (f.acodec && f.acodec !== 'none');
 
-        if (activeTab === 'video') return isVideo && !isAudio; // Video only streams usually have acodec='none'
+        if (activeTab === 'video') return isVideo && !isAudio;
         if (activeTab === 'audio') return isAudio && !isVideo;
         if (activeTab === 'mixed') return isVideo && isAudio;
         return false;
     });
+
+    if (activeTab === 'video' || activeTab === 'mixed') {
+        // Smart filtering: best codec of each type per resolution
+        const bestFormats = new Map();
+
+        displayFormats.forEach(f => {
+            const h = f.height || 0;
+            const w = f.width || 0;
+            const resKey = `${w}x${h}`; // Group by resolution
+            const vc = f.vcodec || '';
+            let cType = 'other';
+            if (vc.includes('av01')) cType = 'av01';
+            else if (vc.includes('vp9')) cType = 'vp9';
+            else if (vc.includes('avc') || vc.includes('mp4v')) cType = 'avc';
+            else if (vc.includes('hev') || vc.includes('hvc')) cType = 'hevc';
+
+            const groupKey = `${resKey}_${cType}`;
+            
+            // Calculate bitrate for comparison
+            let bitrate = f.tbr || f.vbr || ((f.filesize || f.filesize_approx || 0) * 8 / 1024 / (currentData?.duration || 1));
+
+            if (!bestFormats.has(groupKey)) {
+                bestFormats.set(groupKey, f);
+            } else {
+                let existing = bestFormats.get(groupKey);
+                let existingBitrate = existing.tbr || existing.vbr || ((existing.filesize || existing.filesize_approx || 0) * 8 / 1024 / (currentData?.duration || 1));
+                if (bitrate > existingBitrate) {
+                    bestFormats.set(groupKey, f);
+                }
+            }
+        });
+        displayFormats = Array.from(bestFormats.values());
+    }
 
     // Sort: Best resolution/bitrate first
     displayFormats.sort((a, b) => {
         // Simple sort by tbr (total bitrate) or filesize if available
         let aSize = a.filesize || a.filesize_approx || ((a.tbr || 0) * 1024 / 8 * (currentData?.duration || 0));
         let bSize = b.filesize || b.filesize_approx || ((b.tbr || 0) * 1024 / 8 * (currentData?.duration || 0));
+        
+        // Also sort by resolution first if available
+        let aRes = (a.width || 0) * (a.height || 0);
+        let bRes = (b.width || 0) * (b.height || 0);
+        
+        if (aRes !== bRes) return bRes - aRes;
+        
         return (b.tbr || bSize || 0) - (a.tbr || aSize || 0);
     });
 
@@ -817,6 +998,10 @@ function updateCommand() {
     if (settings.noPlaylist) flags.push('--no-playlist');
     if (settings.writeSubs) flags.push('--write-subs');
     if (settings.ignoreErrors) flags.push('--ignore-errors');
+    
+    if (settings.concurrentFragments > 1) {
+        flags.push(`-N ${settings.concurrentFragments}`);
+    }
 
     let path = settings.downloadPath;
     // Strict: Always use -P with quotes
@@ -827,7 +1012,12 @@ function updateCommand() {
 
     let sectionArg = sectionTime ? `--download-sections "${sectionTime}"` : '';
 
-    let cmd = `yt-dlp ${sectionArg} ${formatPart} ${flags.join(' ')} ${cookiesArg} ${pathArg} "${el.urlInput.value.trim()}"`;
+    let playlistArg = "";
+    if (isPlaylistMode && playlistItemsToDownload.length > 0) {
+        playlistArg = `--playlist-items ${playlistItemsToDownload.join(',')}`;
+    }
+
+    let cmd = `yt-dlp ${sectionArg} ${playlistArg} ${formatPart} ${flags.join(' ')} ${cookiesArg} ${pathArg} "${el.urlInput.value.trim()}"`;
     // Clean up extra spaces
     cmd = cmd.replace(/\s+/g, ' ').trim();
     el.cmdPreview.value = cmd;
