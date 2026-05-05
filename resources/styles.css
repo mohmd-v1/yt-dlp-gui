@@ -588,6 +588,12 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes indeterminate {
+    0% { transform: translateX(-100%); width: 30%; }
+    50% { width: 50%; }
+    100% { transform: translateX(300%); width: 30%; }
+}
+
 .modal-content {
     background: var(--bg-card);
     border: 1px solid var(--border);
