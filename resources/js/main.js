@@ -21,7 +21,7 @@ let settings = {
     noPlaylist: false,
     writeSubs: false,
     ignoreErrors: false,
-    concurrentFragments: 1
+    concurrentFragments: 8
 };
 
 // Elements
@@ -67,6 +67,7 @@ const el = {
         concurrentFragments: document.getElementById('concurrentFragments')
     },
     ytdlpVersionText: document.getElementById('ytdlpVersionText'),
+    ffmpegVersionText: document.getElementById('ffmpegVersionText'),
     updateYtdlpBtn: document.getElementById('updateYtdlpBtn'),
     modal: {
         self: document.getElementById('progressModal'),
@@ -99,8 +100,23 @@ const el = {
         selectAllBtn: document.getElementById('selectAllPlaylistBtn'),
         deselectAllBtn: document.getElementById('deselectAllPlaylistBtn'),
         confirmBtn: document.getElementById('confirmPlaylistBtn')
+    },
+    install: {
+        modal: document.getElementById('installModal'),
+        promptView: document.getElementById('installPromptView'),
+        progressView: document.getElementById('installProgressView'),
+        status: document.getElementById('installStatusText'),
+        startBtn: document.getElementById('startInstallBtn'),
+        exitBtn: document.getElementById('exitAppBtn'),
+        skipBtn: document.getElementById('skipInstallBtn'),
+        title: document.getElementById('installTitle'),
+        desc: document.getElementById('installDesc'),
+        progTitle: document.getElementById('progressTitle'),
+        progDesc: document.getElementById('progressDesc')
     }
 };
+
+let installTarget = 'ytdlp'; // 'ytdlp' or 'ffmpeg'
 
 // Init
 // Event Listeners
@@ -129,25 +145,179 @@ Neutralino.events.on("ready", async () => {
     }
 
     loadSettings();
-    checkYtdlpVersion();
 });
 
-// Check YT-DLP Version
+// Check YT-DLP Installation and Version
+// Check Tools Installation
+async function ensureToolsInstalled() {
+    const hasYtdlp = await checkYtdlp();
+    if (!hasYtdlp) {
+        showInstallModal('ytdlp');
+        return;
+    }
+
+    const hasFfmpeg = await checkFfmpeg();
+    if (!hasFfmpeg) {
+        showInstallModal('ffmpeg');
+    }
+}
+
+async function checkYtdlp() {
+    try {
+        let output = await Neutralino.os.execCommand('yt-dlp --version');
+        if (output.exitCode === 0) {
+            el.ytdlpVersionText.textContent = `v${output.stdOut.trim()}`;
+            el.ytdlpVersionText.style.color = 'var(--success)';
+            return true;
+        }
+    } catch (err) { }
+    return false;
+}
+
+async function checkFfmpeg() {
+    try {
+        let output = await Neutralino.os.execCommand('ffmpeg -version');
+        if (output.exitCode === 0) {
+            // Parse version from "ffmpeg version 7.0.1..."
+            const match = output.stdOut.match(/version\s+([^\s]+)/);
+            const version = match ? match[1] : 'Installed';
+            el.ffmpegVersionText.textContent = version;
+            el.ffmpegVersionText.style.color = 'var(--success)';
+            return true;
+        }
+    } catch (err) { }
+    el.ffmpegVersionText.textContent = 'Not Found';
+    el.ffmpegVersionText.style.color = 'var(--danger)';
+    return false;
+}
+
+function showInstallModal(target) {
+    installTarget = target;
+    el.install.modal.classList.remove('hidden');
+    el.install.promptView.classList.remove('hidden');
+    el.install.progressView.classList.add('hidden');
+
+    if (target === 'ytdlp') {
+        el.install.title.textContent = 'yt-dlp Required';
+        el.install.desc.textContent = "The core engine (yt-dlp) is missing. It's required to analyze and download videos. Download it now?";
+        el.install.exitBtn.classList.remove('hidden');
+        el.install.skipBtn.classList.add('hidden');
+    } else {
+        el.install.title.textContent = 'FFmpeg Recommended';
+        el.install.desc.textContent = "FFmpeg is missing. It is highly recommended for merging high-quality video and audio. Install it via Winget?";
+        el.install.exitBtn.classList.add('hidden');
+        el.install.skipBtn.classList.remove('hidden');
+    }
+}
+
+// Install Modal Listeners
+el.install.exitBtn.addEventListener('click', () => {
+    Neutralino.app.exit();
+});
+
+el.install.skipBtn.addEventListener('click', () => {
+    el.install.modal.classList.add('hidden');
+});
+
+el.install.startBtn.addEventListener('click', async () => {
+    el.install.promptView.classList.add('hidden');
+    el.install.progressView.classList.remove('hidden');
+
+    if (installTarget === 'ytdlp') {
+        await downloadYtdlp();
+    } else {
+        await installFfmpeg();
+    }
+});
+
+async function downloadYtdlp() {
+    el.install.progTitle.textContent = 'Downloading yt-dlp...';
+    el.install.progDesc.textContent = 'Fetching the latest version from GitHub';
+    el.install.status.textContent = 'Starting download...';
+    el.install.status.style.color = 'var(--accent-light)';
+
+    const progressBar = document.getElementById('installProgressBar');
+    progressBar.style.animation = 'none';
+    progressBar.style.width = '0%';
+
+    try {
+        const downloadCmd = 'curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe -o yt-dlp.exe';
+        let downloadFinished = false;
+
+        const checkProgress = setInterval(async () => {
+            if (downloadFinished) { clearInterval(checkProgress); return; }
+            try {
+                let stats = await Neutralino.filesystem.getStats('./yt-dlp.exe');
+                if (stats && stats.size > 0) {
+                    const currentMB = (stats.size / (1024 * 1024)).toFixed(2);
+                    const percent = Math.min(Math.round((stats.size / (16 * 1024 * 1024)) * 100), 99);
+                    el.install.status.textContent = `Downloaded: ${currentMB} MB...`;
+                    progressBar.style.width = `${percent}%`;
+                }
+            } catch (e) { }
+        }, 1000);
+
+        let result = await Neutralino.os.execCommand(downloadCmd);
+        downloadFinished = true;
+
+        if (result.exitCode === 0) {
+            el.install.status.textContent = 'Success! Checking FFmpeg...';
+            progressBar.style.width = '100%';
+            await checkYtdlpVersion();
+            setTimeout(async () => {
+                const hasFfmpeg = await checkFfmpeg();
+                if (!hasFfmpeg) showInstallModal('ffmpeg');
+                else el.install.modal.classList.add('hidden');
+            }, 1500);
+        } else {
+            throw new Error(result.stdErr || 'Download failed');
+        }
+    } catch (err) {
+        handleInstallError(err.message);
+    }
+}
+
+async function installFfmpeg() {
+    el.install.progTitle.textContent = 'Installing FFmpeg...';
+    el.install.progDesc.textContent = 'Using Windows Package Manager (winget)';
+    el.install.status.textContent = 'Please wait, this may take a minute...';
+
+    const progressBar = document.getElementById('installProgressBar');
+    progressBar.style.animation = 'indeterminate 2s infinite linear';
+    progressBar.style.width = '100%';
+
+    try {
+        const installCmd = 'winget install "FFmpeg (Essentials Build)" --accept-source-agreements --accept-package-agreements';
+        let result = await Neutralino.os.execCommand(installCmd);
+
+        if (result.exitCode === 0) {
+            el.install.status.textContent = 'FFmpeg installed successfully!';
+            setTimeout(() => el.install.modal.classList.add('hidden'), 2000);
+        } else {
+            throw new Error(result.stdErr || 'Winget failed. You may need to install it manually.');
+        }
+    } catch (err) {
+        handleInstallError(err.message);
+    }
+}
+
+function handleInstallError(msg) {
+    el.install.status.textContent = 'Error: ' + msg;
+    el.install.status.style.color = 'var(--danger)';
+    setTimeout(() => {
+        el.install.progressView.classList.add('hidden');
+        el.install.promptView.classList.remove('hidden');
+    }, 4000);
+}
+
 async function checkYtdlpVersion() {
     try {
         let output = await Neutralino.os.execCommand('yt-dlp --version');
         if (output.exitCode === 0) {
             el.ytdlpVersionText.textContent = `v${output.stdOut.trim()}`;
             el.ytdlpVersionText.style.color = 'var(--success)';
-        } else {
-            el.ytdlpVersionText.textContent = 'Not Found / Error';
-            el.ytdlpVersionText.style.color = 'var(--danger)';
         }
-    } catch (err) {
-        el.ytdlpVersionText.textContent = 'Not Installed';
-        el.ytdlpVersionText.style.color = 'var(--danger)';
-        console.error("Failed to check yt-dlp version", err);
-    }
+    } catch (err) { }
 }
 
 // Update YT-DLP
@@ -610,10 +780,10 @@ async function smartAnalyze() {
 
     try {
         let cookiesArg = settings.cookiesPath ? `--cookies "${settings.cookiesPath}"` : '';
-        
+
         // Optimization: If URL doesn't look like a playlist, skip the flat-playlist check
         const looksLikePlaylist = url.includes('list=') || url.includes('/playlist?');
-        
+
         if (!looksLikePlaylist) {
             await analyzeUrl();
             return;
@@ -826,14 +996,14 @@ function renderGrid() {
     filtered.forEach(f => {
         const resKey = f.width ? `${f.width}x${f.height}` : 'Audio';
         if (!groups[resKey]) groups[resKey] = {};
-        
+
         const vc = f.vcodec || '';
         let cType = 'other';
         if (vc.includes('av01')) cType = 'av01';
         else if (vc.includes('vp9')) cType = 'vp9';
         else if (vc.includes('avc') || vc.includes('mp4v')) cType = 'avc';
         else if (vc.includes('hev') || vc.includes('hvc')) cType = 'hevc';
-        
+
         if (!groups[resKey][cType]) groups[resKey][cType] = [];
         groups[resKey][cType].push(f);
     });
@@ -848,7 +1018,7 @@ function renderGrid() {
     sortedResKeys.forEach(resKey => {
         const resGroup = groups[resKey];
         const availableCTypes = Object.keys(resGroup).sort((a, b) => codecPriority[b] - codecPriority[a]);
-        
+
         // Use previous selection or default to best
         let currentCType = resolutionSelections[resKey]?.cType;
         if (!currentCType || !availableCTypes.includes(currentCType)) {
@@ -856,7 +1026,7 @@ function renderGrid() {
         }
 
         const formatsForCType = resGroup[currentCType].sort((a, b) => (b.tbr || b.vbr || 0) - (a.tbr || a.vbr || 0));
-        
+
         let currentFormatId = resolutionSelections[resKey]?.formatId;
         let activeFmt = formatsForCType.find(f => f.format_id === currentFormatId) || formatsForCType[0];
 
@@ -880,7 +1050,7 @@ function renderSmartRow(resKey, ctypes, activeCType, variants, activeFmt, resGro
 
     const size = activeFmt.filesize ? formatBytes(activeFmt.filesize) : (activeFmt.filesize_approx ? '~' + formatBytes(activeFmt.filesize_approx) : '≈' + formatBytes(((activeFmt.tbr || 0) * 1024 / 8) * (currentData?.duration || 0)));
 
-    const codecHTML = ctypes.length > 1 
+    const codecHTML = ctypes.length > 1
         ? `<select class="res-select codec-select">
             ${ctypes.map(c => `<option value="${c}" ${c === activeCType ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('')}
            </select>`
@@ -921,11 +1091,11 @@ function renderSmartRow(resKey, ctypes, activeCType, variants, activeFmt, resGro
             const newCType = e.target.value;
             const variants = resGroup[newCType].sort((a, b) => (b.tbr || b.vbr || 0) - (a.tbr || a.vbr || 0));
             const firstVariant = variants[0];
-            
+
             if (activeFmt.format_id === selectedVideoId) {
                 selectedVideoId = firstVariant.format_id;
             }
-            
+
             resolutionSelections[resKey] = { cType: newCType, formatId: firstVariant.format_id };
             renderGrid();
             updateCommand();
@@ -936,11 +1106,11 @@ function renderSmartRow(resKey, ctypes, activeCType, variants, activeFmt, resGro
     if (bitSel) {
         bitSel.addEventListener('change', (e) => {
             const newId = e.target.value;
-            
+
             if (activeFmt.format_id === selectedVideoId) {
                 selectedVideoId = newId;
             }
-            
+
             resolutionSelections[resKey] = { cType: activeCType, formatId: newId };
             renderGrid();
             updateCommand();
@@ -958,9 +1128,9 @@ function renderRow(fmt) {
     row.className = 'grid-row';
     row.dataset.id = fmt.format_id;
     if (fmt.format_id === selectedVideoId || fmt.format_id === selectedAudioId) row.classList.add('selected');
-    
+
     row.onclick = () => handleRowClick(fmt, row);
-    
+
     const size = fmt.filesize ? formatBytes(fmt.filesize) : (fmt.filesize_approx ? '~' + formatBytes(fmt.filesize_approx) : '≈' + formatBytes(((fmt.tbr || 0) * 1024 / 8) * (currentData?.duration || 0)));
 
     row.innerHTML = `
@@ -1332,5 +1502,6 @@ Neutralino.events.on("windowClose", () => {
     Neutralino.app.exit();
 });
 
-// Load settings on startup
+// Load settings and check tools on startup
 loadSettings();
+ensureToolsInstalled();
