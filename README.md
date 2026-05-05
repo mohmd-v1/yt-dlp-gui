@@ -37,7 +37,8 @@ A modern, professional desktop application for downloading videos using yt-dlp w
 
 ## Download
 - Get the latest ready-to-use version:
-https://github.com/mohmd-v1/yt-dlp-gui/releases/download/v2/yt_dlp_gui-win.zip
+https://github.com/mohmd-v1/yt-dlp-gui/releases/download/v2/yt_dlp_gui-win_x64.zip
+-
 https://github.com/mohmd-v1/yt-dlp-gui/releases/tag/v2
 
 ## Installation
