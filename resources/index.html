@@ -150,20 +150,27 @@
           <button id="closeSettingsBtn" class="close-btn">×</button>
         </div>
         <div class="modal-body">
-          <!-- YT-DLP CLI -->
+          <!-- Core Tools -->
           <div class="setting-group">
-            <h4>YT-DLP CLI</h4>
-            <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+            <h4>Core Dependencies</h4>
+            <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+              <!-- YT-DLP -->
               <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                <span id="ytdlpVersionText"
-                  style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking version...</span>
-                <button id="updateYtdlpBtn" class="secondary-btn"
-                  style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l5.25 5.25" />
-                  </svg>
-                  Update
-                </button>
+                <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">yt-dlp</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span id="ytdlpVersionText" style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking...</span>
+                  <button id="updateYtdlpBtn" class="secondary-btn" style="padding: 6px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l5.25 5.25" />
+                    </svg>
+                    Update
+                  </button>
+                </div>
+              </div>
+              <!-- FFmpeg -->
+              <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">FFmpeg</span>
+                <span id="ffmpegVersionText" style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking...</span>
               </div>
             </div>
           </div>
@@ -441,6 +448,40 @@
           <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
             <button id="confirmPlaylistBtn" class="primary-btn">Confirm & Load Formats</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- yt-dlp Installation Modal -->
+    <div id="installModal" class="modal hidden">
+      <div class="modal-content" style="max-width: 450px; text-align: center;">
+        <div id="installPromptView">
+          <div class="success-icon" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </div>
+          <h3 id="installTitle">yt-dlp Required</h3>
+          <p id="installDesc" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px; line-height: 1.5;">
+            The core engine (yt-dlp) is missing. It's required to analyze and download videos. Download it now to continue?
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button id="exitAppBtn" class="secondary-btn" style="padding: 10px 24px;">Exit</button>
+            <button id="skipInstallBtn" class="secondary-btn hidden" style="padding: 10px 24px;">Skip</button>
+            <button id="startInstallBtn" class="primary-btn" style="padding: 10px 24px;">Download Now</button>
+          </div>
+        </div>
+
+        <div id="installProgressView" class="hidden">
+          <h3 id="progressTitle">Downloading...</h3>
+          <p id="progressDesc" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">Fetching the latest version from GitHub</p>
+          <div class="progress-track" style="height: 8px;">
+            <div id="installProgressBar" class="progress-fill" style="width: 100%; animation: indeterminate 2s infinite linear;"></div>
+          </div>
+          <div id="installStatusText" style="font-size: 12px; color: var(--accent-light); margin-top: 10px;">Connecting...</div>
         </div>
       </div>
     </div>
