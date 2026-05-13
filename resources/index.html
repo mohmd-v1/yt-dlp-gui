@@ -21,7 +21,10 @@
         <button id="analyzePlaylistBtn" class="primary-btn"
           style="background: linear-gradient(135deg, #b9101037 0%, #9605057b 100%);"
           title="Analyze as Playlist">Playlist</button>
-        <button id="quickM4aBtn" class="secondary-btn" title="Quick Download Audio (m4a)">M4A</button>
+        <button id="quickM4aBtn" class="secondary-btn" title="Quick Download Audio" style="min-width: 52px; padding: 0 14px; display: flex; align-items: center; justify-content: center; gap: 8px; border-color: var(--warning); color: var(--warning);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            <span id="quickAudioLabel" style="font-size: 10px; font-weight: 900; background: var(--warning); color: #000; padding: 2px 5px; border-radius: 4px; line-height: 1;">M4A</span>
+        </button>
       </div>
     </header>
 
@@ -30,6 +33,28 @@
       <!-- Loading Overlay -->
       <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
+      </div>
+
+      <!-- Drag & Drop Overlay (Integrated Corner Zone) -->
+      <div id="dragOverlay" class="loading-overlay hidden" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center;">
+        
+        <!-- Corner Quick Zone -->
+        <div id="dropZoneQuick" class="drop-zone-corner" style="position: absolute; top: 30px; right: 30px; width: 220px; height: 220px; border: 3px dashed var(--warning); border-radius: 30px; background: rgba(245, 158, 11, 0.05); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10001;">
+            <div style="background: rgba(245, 158, 11, 0.1); padding: 20px; border-radius: 50%; margin-bottom: 15px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning);"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            </div>
+            <h3 style="color: var(--text-primary); font-size: 1.1em; margin-bottom: 5px;">Quick Audio</h3>
+            <p style="color: var(--text-secondary); font-size: 0.85em;">Drop here for M4A/Opus</p>
+        </div>
+
+        <!-- Main Analyze Zone (The rest of the screen) -->
+        <div id="dropZoneAnalyze" style="pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="drop-icon-circle" style="background: rgba(229, 57, 53, 0.1); padding: 40px; border-radius: 50%; margin-bottom: 25px; border: 2px solid rgba(229, 57, 53, 0.2);">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </div>
+            <h2 style="color: var(--text-primary); font-size: 2.2em; margin-bottom: 10px;">Drop to Analyze</h2>
+            <p style="color: var(--text-secondary); font-size: 1.2em;">Drop anywhere else to view formats</p>
+        </div>
       </div>
 
       <!-- Content Area -->
@@ -42,8 +67,7 @@
 
         <!-- Tabs -->
         <div class="tabs">
-          <button class="tab-btn active" data-tab="video">Video Only</button>
-          <button class="tab-btn" data-tab="audio">Audio Only</button>
+          <button class="tab-btn active" data-tab="combined">Video + Audio</button>
           <button class="tab-btn" data-tab="mixed">Mixed</button>
         </div>
 
@@ -54,23 +78,61 @@
             <line x1="12" y1="16" x2="12" y2="12"></line>
             <line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
-          <span>These formats contain <strong>Video Only</strong>. Please select an <strong>Audio</strong> format from the "Audio Only" tab to include sound.</span>
+          <span>These formats contain <strong>Video Only</strong>. Please select an <strong>Audio</strong> format from
+            the "Audio Only" tab to include sound.</span>
         </div>
 
-        <!-- Data Grid -->
-        <div class="data-grid">
-          <div class="grid-header">
-            <div class="col">ID</div>
-            <div class="col">Ext</div>
-            <div class="col">Resolution</div>
-            <div class="col">FPS</div>
-            <div class="col">Size</div>
-            <div class="col">V-Codec</div>
-            <div class="col">A-Codec</div>
-            <div class="col">Bitrate</div>
-            <div class="col" style="text-align: center;">Copy</div>
+        <!-- Dual View (Video + Audio) -->
+        <div id="dualView" class="dual-grid hidden">
+          <!-- Left: Video -->
+          <div class="split-col">
+            <div class="split-header video-header">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                <span>Video Streams</span>
+              </div>
+              <span class="info-sub">Quality & Codec</span>
+            </div>
+            <div id="videoGridBody" class="split-body custom-scrollbar"></div>
           </div>
-          <div id="gridBody" class="grid-body"></div>
+          <!-- Right: Audio -->
+          <div class="split-col">
+            <div class="split-header audio-header">
+              <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning);"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                <span style="font-weight: 700; font-size: 13px;">Audio</span>
+              </div>
+              
+              <!-- Subtitle Multi-Select (Compact) -->
+              <div id="subSelectorWrapper" class="hidden" style="display: flex; align-items: center; gap: 6px;">
+                <div class="custom-select-container" id="subMultiSelect" style="min-width: 110px;">
+                  <div class="custom-select-trigger" style="padding: 4px 8px; font-size: 11px; height: 26px; border-color: rgba(168, 85, 247, 0.4);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #a855f7; margin-right: 4px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <span id="subCountText">Subs (0)</span>
+                    <svg class="chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </div>
+                  <div class="custom-options custom-scrollbar" id="subOptionsList" style="max-height: 250px; width: 180px; right: 0;">
+                    <!-- Subtitle options with checkboxes -->
+                  </div>
+                </div>
+              </div>
+
+              <span class="info-sub" style="margin-left: 8px; font-size: 11px;">Ext & Bitrate</span>
+            </div>
+            <div id="audioGridBody" class="split-body custom-scrollbar"></div>
+          </div>
+        </div>
+
+        <!-- Data Grid (For Mixed/Standalone) -->
+        <div id="standardView" class="split-col hidden">
+          <div class="split-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+              <span>Mixed Formats (Video + Audio)</span>
+            </div>
+            <span class="info-sub">Integrated Streams</span>
+          </div>
+          <div id="gridBody" class="split-body custom-scrollbar"></div>
         </div>
       </div>
 
@@ -102,7 +164,8 @@
         </button>
         <button id="openGithubBtn" class="icon-btn" title="GitHub Repository">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.041-1.416-4.041-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+            <path
+              d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.041-1.416-4.041-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
           </svg>
         </button>
         <span id="statusMsg">Ready</span>
@@ -150,16 +213,35 @@
           <button id="closeSettingsBtn" class="close-btn">×</button>
         </div>
         <div class="modal-body">
+          <!-- Appearance -->
+          <div class="setting-group">
+            <h4>Appearance</h4>
+            <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+              <label style="font-size: 13px; font-weight: 500; color: var(--text-primary);">Theme</label>
+              <div style="display: flex; gap: 8px; width: 100%;">
+                <select id="themeSelect" class="res-select" style="min-width: 160px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-primary); padding: 8px 12px; border-radius: var(--radius-sm);">
+                  <option value="dark">Dark Mode</option>
+                  <option value="light">Light Mode</option>
+                  <option value="system">System Default</option>
+                </select>
+                <small style="color: var(--text-muted); display: flex; align-items: center;">Choose your preferred app appearance</small>
+              </div>
+            </div>
+          </div>
+
           <!-- Core Tools -->
           <div class="setting-group">
             <h4>Core Dependencies</h4>
-            <div class="setting-item" style="flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
+            <div class="setting-item"
+              style="flex-direction: column; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
               <!-- YT-DLP -->
               <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
                 <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">yt-dlp</span>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <span id="ytdlpVersionText" style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking...</span>
-                  <button id="updateYtdlpBtn" class="secondary-btn" style="padding: 6px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
+                  <span id="ytdlpVersionText"
+                    style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking...</span>
+                  <button id="updateYtdlpBtn" class="secondary-btn"
+                    style="padding: 6px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l5.25 5.25" />
                     </svg>
@@ -170,7 +252,8 @@
               <!-- FFmpeg -->
               <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
                 <span style="font-size: 13px; font-weight: 500; color: var(--text-primary);">FFmpeg</span>
-                <span id="ffmpegVersionText" style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking...</span>
+                <span id="ffmpegVersionText"
+                  style="font-weight: 500; color: var(--text-secondary); font-size: 13px;">Checking...</span>
               </div>
             </div>
           </div>
@@ -184,9 +267,16 @@
           </div>
 
           <!-- Cookies File -->
-          <div class="setting-item">
-            <label>Cookies File (Optional):</label>
-            <div style="display: flex; gap: 8px;">
+          <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+            <div style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 8px;">
+              <label>Cookies File (Optional):</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="useCookies" checked>
+                <span class="slider"></span>
+                <span style="font-size: 11px; font-weight: bold;">USE COOKIES</span>
+              </label>
+            </div>
+            <div style="display: flex; gap: 8px; width: 100%;">
               <input type="text" id="cookiesPath" value="" placeholder="No cookies file" style="flex: 1;">
               <button id="browseCookiesBtn" class="secondary-btn">Browse</button>
               <button id="clearCookiesBtn" class="secondary-btn">Clear</button>
@@ -226,6 +316,19 @@
           <!-- Download Behavior -->
           <div class="setting-group">
             <h4>Download Behavior</h4>
+
+            <div class="setting-item"
+              style="flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px;">
+              <label style="font-size: 13px; font-weight: 500; color: var(--text-primary);">Quick Audio Format</label>
+              <div style="display: flex; gap: 8px; width: 100%;">
+                <select id="quickAudioFormat" class="res-select" style="min-width: 140px; background: var(--bg-hover); border: 1px solid var(--border-light); color: var(--text-primary); padding: 6px 12px; border-radius: var(--radius-sm);">
+                  <option value="m4a">M4A (Apple Audio)</option>
+                  <option value="opus">Opus (High Quality)</option>
+                </select>
+                <small style="color: var(--text-muted); display: flex; align-items: center;">Default format for 'Quick Download Audio' button</small>
+                <small style="color: var(--warning); font-weight: 600; margin-top: 2px;">Tip: Press [ALT + 1] anywhere to quick download from clipboard!</small>
+              </div>
+            </div>
 
             <div class="setting-item"
               style="flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px;">
@@ -453,37 +556,69 @@
     </div>
   </div>
 
-    <!-- yt-dlp Installation Modal -->
-    <div id="installModal" class="modal hidden">
-      <div class="modal-content" style="max-width: 450px; text-align: center;">
-        <div id="installPromptView">
-          <div class="success-icon" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-          </div>
-          <h3 id="installTitle">yt-dlp Required</h3>
-          <p id="installDesc" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px; line-height: 1.5;">
-            The core engine (yt-dlp) is missing. It's required to analyze and download videos. Download it now to continue?
-          </p>
-          <div style="display: flex; gap: 12px; justify-content: center;">
-            <button id="exitAppBtn" class="secondary-btn" style="padding: 10px 24px;">Exit</button>
-            <button id="skipInstallBtn" class="secondary-btn hidden" style="padding: 10px 24px;">Skip</button>
-            <button id="startInstallBtn" class="primary-btn" style="padding: 10px 24px;">Download Now</button>
-          </div>
-        </div>
+  </div>
+  </div>
 
-        <div id="installProgressView" class="hidden">
-          <h3 id="progressTitle">Downloading...</h3>
-          <p id="progressDesc" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">Fetching the latest version from GitHub</p>
-          <div class="progress-track" style="height: 8px;">
-            <div id="installProgressBar" class="progress-fill" style="width: 100%; animation: indeterminate 2s infinite linear;"></div>
-          </div>
-          <div id="installStatusText" style="font-size: 12px; color: var(--accent-light); margin-top: 10px;">Connecting...</div>
+  <!-- yt-dlp Installation Modal -->
+  <div id="installModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 450px; text-align: center;">
+      <div id="installPromptView">
+        <div class="success-icon"
+          style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </div>
+        <h3 id="installTitle">yt-dlp Required</h3>
+        <p id="installDesc"
+          style="color: var(--text-secondary); font-size: 14px; margin-bottom: 25px; line-height: 1.5;">
+          The core engine (yt-dlp) is missing. It's required to analyze and download videos. Download it now to
+          continue?
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button id="exitAppBtn" class="secondary-btn" style="padding: 10px 24px;">Exit</button>
+          <button id="skipInstallBtn" class="secondary-btn hidden" style="padding: 10px 24px;">Skip</button>
+          <button id="startInstallBtn" class="primary-btn" style="padding: 10px 24px;">Download Now</button>
         </div>
       </div>
+
+      <div id="installProgressView" class="hidden">
+        <h3 id="progressTitle">Downloading...</h3>
+        <p id="progressDesc" style="color: var(--text-secondary); font-size: 13px; margin-bottom: 20px;">Fetching the
+          latest version from GitHub</p>
+        <div class="progress-track" style="height: 8px;">
+          <div id="installProgressBar" class="progress-fill"
+            style="width: 100%; animation: indeterminate 2s infinite linear;"></div>
+        </div>
+        <div id="installStatusText" style="font-size: 12px; color: var(--accent-light); margin-top: 10px;">Connecting...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert Modal -->
+  <div id="alertModal" class="modal hidden">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <div class="success-icon"
+        style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      </div>
+      <h3 id="alertTitle" style="margin-top: 15px;">Notice</h3>
+      <div style="max-height: 250px; overflow-y: auto; margin: 15px 0 25px; padding-right: 5px;"
+        class="custom-scrollbar">
+        <p id="alertMsg"
+          style="color: var(--text-secondary); font-size: 14px; line-height: 1.5; text-align: left; white-space: pre-wrap; word-break: break-word;">
+        </p>
+      </div>
+      <button id="closeAlertBtn" class="primary-btn" style="width: 100%; padding: 12px;">OK</button>
     </div>
   </div>
 
